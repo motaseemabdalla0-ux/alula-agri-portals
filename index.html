@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>بوابات مركز الزراعة — العلا</title>
+<meta name="description" content="مزاد تمور العلا 2026 واستبيان إنتاج التمور والحمضيات — مركز الزراعة، الهيئة الملكية لمحافظة العلا">
+<meta name="theme-color" content="#14332D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%2314332D%22/%3E%3Cpath d=%22M16 13c.5 4 .3 8-1 12M16 13c-2-3-5-3.5-8-2M16 13c-1-3.5-3.5-5.5-7-5.5M16 13c2-3 5-3.5 8-2M16 13c1-3.5 3.5-5.5 7-5.5%22 stroke=%22%23fff%22 stroke-width=%222%22 fill=%22none%22 stroke-linecap=%22round%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#14332D;--primary-2:#2B5A50;--soft:#E3EAE8;--gold:#BA9863;--gold-ink:#986018;--bg:#F8F4EF;--ink:#3D3936;--muted:#6E6A66;--line:#E7E1D8;--card:#fff;
+  --f:"Cairo","Segoe UI",Tahoma,Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--f);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px clamp(16px,4vw,48px);background:#fff;border-bottom:1px solid var(--line)}
+.top img{height:40px;width:auto;display:block}
+.top .lang{font-size:13px;font-weight:700;color:var(--primary);background:var(--soft);border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-family:inherit}
+main{flex:1;width:100%;max-width:1080px;margin:0 auto;padding:clamp(28px,6vw,64px) 16px 40px}
+.hero{text-align:center;margin-bottom:clamp(28px,5vw,48px)}
+.hero .kicker{display:inline-block;font-size:13px;font-weight:700;color:var(--gold-ink);background:#F4ECDF;border-radius:999px;padding:5px 14px;margin-bottom:14px}
+.hero h1{margin:0;font-size:clamp(26px,4.5vw,40px);font-weight:800;color:var(--primary);line-height:1.3}
+.hero p{margin:12px auto 0;max-width:560px;font-size:16px;color:var(--muted);line-height:1.8}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.portal{position:relative;display:flex;flex-direction:column;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 26px 24px;text-decoration:none;box-shadow:0 1px 3px rgba(61,57,54,.06);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;overflow:hidden}
+.portal::before{content:"";position:absolute;inset-inline:0;top:0;height:5px;background:var(--accent)}
+.portal:hover,.portal:focus-visible{transform:translateY(-3px);box-shadow:0 18px 40px -18px rgba(20,51,45,.35);border-color:#CFDCD8;outline:none}
+.portal .ic{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.portal .ic svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.portal h2{margin:4px 0 0;font-size:22px;font-weight:800;color:var(--primary)}
+.portal .en{font-size:13px;font-weight:600;color:var(--muted);direction:ltr;text-align:start;margin-top:-6px}
+.portal p{margin:0;font-size:15px;line-height:1.8;color:var(--ink)}
+.portal ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.portal li{font-size:12.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:4px 11px}
+.portal .go{margin-top:auto;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;font-size:15px}
+.portal .go svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html[dir=rtl] .portal .go svg{transform:scaleX(-1)}
+.auction{--accent:#14332D;--accent-soft:#E3EAE8}
+.survey{--accent:#986018;--accent-soft:#F4ECDF}
+footer{text-align:center;font-size:13px;color:var(--muted);padding:22px 16px 28px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.top img{height:32px}.portal{padding:24px 20px 20px}}
+@media(prefers-reduced-motion:reduce){.portal{transition:none}.portal:hover{transform:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="assets/rcu-logo.svg" alt="الهيئة الملكية لمحافظة العلا — Royal Commission for AlUla">
+  <button class="lang" type="button" onclick="setLang(document.documentElement.lang==='ar'?'en':'ar')" data-t="English|العربية">English</button>
+</header>
+<main>
+  <section class="hero">
+    <span class="kicker" data-t="مركز الزراعة|Agriculture Center">مركز الزراعة</span>
+    <h1 data-t="بوابات مركز الزراعة — العلا|AlUla Agriculture Center portals">بوابات مركز الزراعة — العلا</h1>
+    <p data-t="اختر البوابة التي تريد فتحها.|Choose the portal you want to open.">اختر البوابة التي تريد فتحها.</p>
+  </section>
+  <div class="grid">
+    <a class="portal auction" href="auction/">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m14.5 12.5-8 8a2.1 2.1 0 0 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg></span>
+      <h2 data-t="مزاد تمور العلا 2026|AlUla Date Auction 2026">مزاد تمور العلا 2026</h2>
+      <div class="en" data-t="AlUla Date Auction 2026|مزاد تمور العلا 2026">AlUla Date Auction 2026</div>
+      <p data-t="لوحة المؤشرات والدفعات والبائعين والمشترين والتقارير لموسم المزاد، مع المقارنة بموسم 2025.|Dashboard, batches, sellers, buyers and reports for the auction season, compared with 2025.">لوحة المؤشرات والدفعات والبائعين والمشترين والتقارير لموسم المزاد، مع المقارنة بموسم 2025.</p>
+      <ul><li data-t="لوحة المؤشرات|Dashboard">لوحة المؤشرات</li><li data-t="الدفعات|Batches">الدفعات</li><li data-t="التقارير|Reports">التقارير</li><li data-t="تصدير Excel|Excel export">تصدير Excel</li></ul>
+      <span class="go"><span data-t="فتح المزاد|Open the auction">فتح المزاد</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+    <a class="portal survey" href="survey/">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 12 2 2 4-4"/><path d="M9 18h6"/></svg></span>
+      <h2 data-t="استبيان إنتاج التمور والحمضيات|Dates & citrus production survey">استبيان إنتاج التمور والحمضيات</h2>
+      <div class="en" data-t="Dates & citrus production survey|استبيان إنتاج التمور والحمضيات">Dates &amp; citrus production survey</div>
+      <p data-t="جمع بيانات إنتاج المزارع ميدانياً مع تحديد موقع المزرعة على الخريطة.|Field collection of farm production data, with the farm location on a map.">جمع بيانات إنتاج المزارع ميدانياً مع تحديد موقع المزرعة على الخريطة.</p>
+      <ul><li data-t="استبيان ميداني|Field survey">استبيان ميداني</li><li data-t="الموقع على الخريطة|Map location">الموقع على الخريطة</li><li data-t="يعمل على الجوال|Works on mobile">يعمل على الجوال</li></ul>
+      <span class="go"><span data-t="فتح الاستبيان|Open the survey">فتح الاستبيان</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </div>
+</main>
+<footer data-t="الهيئة الملكية لمحافظة العلا — مركز الزراعة|Royal Commission for AlUla — Agriculture Center">الهيئة الملكية لمحافظة العلا — مركز الزراعة</footer>
+<script>
+function setLang(l){const ar=l==='ar';document.documentElement.lang=l;document.documentElement.dir=ar?'rtl':'ltr';
+  document.querySelectorAll('[data-t]').forEach(e=>{const [a,b]=e.dataset.t.split('|');e.textContent=ar?a:b});
+  document.title=ar?'بوابات مركز الزراعة — العلا':'AlUla Agriculture Center portals';
+  try{localStorage.setItem('alula_portals_lang',l)}catch(e){}}
+try{const l=localStorage.getItem('alula_portals_lang');if(l==='en')setLang('en')}catch(e){}
+</script>
+</body>
+</html>
