@@ -37,10 +37,12 @@ ADAPTER = r'''<script src="../assets/sb.js"></script>
 (()=>{if(!window.SB||!SB.configured)return;
   window.post=async function(p){
     if(p.action==='submit'){await SB.rest('surveys?on_conflict=record_id',{method:'POST',body:[{record_id:p.record.recordId,data:p.record}],headers:{Prefer:'resolution=merge-duplicates,return=minimal'}});return {ok:true,recordId:p.record.recordId}}
-    if(p.action==='list'){const rows=await SB.all('surveys','select=data');return {ok:true,records:rows.map(r=>r.data)}}
+    if(p.action==='list'){const rows=await SB.all('surveys','select=data&order=record_id.asc');return {ok:true,records:rows.map(r=>r.data)}}
     return {ok:false,error:'unknown_action'}};
-  document.addEventListener('sb:signout',()=>location.reload());
-  SB.gate({sub:'استبيان إنتاج التمور والحمضيات'}).then(()=>{try{syncOutbox();pullFromServer(true)}catch(e){}});
+  const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}};
+  /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */
+  document.addEventListener('sb:signout',e=>{if(e.detail&&e.detail.user)location.reload();else SB.gate({sub,note:'إجاباتك محفوظة على هذا الجهاز وتُرسل بعد الدخول.'}).then(after)});
+  SB.gate({sub}).then(after);
 })();
 </script>
 '''

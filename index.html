@@ -86,7 +86,11 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:22px 16px 28p
 /* signed-in state (the same team account opens both portals) */
 (()=>{if(!window.SB||!SB.configured||!SB.signedIn)return;const w=document.getElementById('who'),o=document.getElementById('out');
   w.textContent=SB.email||'';w.hidden=false;o.hidden=false;
-  o.onclick=()=>{try{['alu_v48_lots','alu_v48_sellers','alu_v48_buyers','alu_v48_autobackup','dates-survey-records-v1'].forEach(k=>localStorage.removeItem(k))}catch(e){}SB.signOut();location.reload()}})();
+  o.onclick=()=>{const ar=document.documentElement.lang==='ar';let q=0,sq=0;try{q=(JSON.parse(localStorage.getItem('alu_sync_q')||'[]')||[]).length;sq=(JSON.parse(localStorage.getItem('dates-survey-outbox-v1')||'[]')||[]).length}catch(e){}
+    /* never sign out while this device still holds data that has not reached the database */
+    if(q||sq){alert(ar?('لا يمكن تسجيل الخروج الآن: على هذا الجهاز '+(q?q+' تعديل في المزاد ':'')+(sq?sq+' استبيان ':'')+'لم تُرسل بعد. افتح البوابة واتصل بالإنترنت حتى تُرسل، ثم سجّل الخروج.'):('Cannot sign out yet: this device still has '+(q?q+' auction change(s) ':'')+(sq?sq+' survey(s) ':'')+'not sent. Open the portal online until they are sent, then sign out.'));return}
+    if(!confirm(ar?'تسجيل الخروج؟ تُمسح نسخة البيانات من هذا الجهاز، وتبقى في قاعدة البيانات.':'Sign out? The copy of the data on this device is removed; it stays in the database.'))return;
+    try{['alu_v48_lots','alu_v48_sellers','alu_v48_buyers','alu_v48_autobackup','dates-survey-records-v1'].forEach(k=>localStorage.removeItem(k))}catch(e){}SB.signOut();location.reload()}})();
 function setLang(l){const ar=l==='ar';document.documentElement.lang=l;document.documentElement.dir=ar?'rtl':'ltr';
   document.querySelectorAll('[data-t]').forEach(e=>{const [a,b]=e.dataset.t.split('|');e.textContent=ar?a:b});
   document.title=ar?'بوابات مركز الزراعة — العلا':'AlUla Agriculture Center portals';

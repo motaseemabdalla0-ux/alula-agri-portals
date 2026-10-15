@@ -2752,11 +2752,13 @@ window.SB = (() => {
   const KEY = 'sb_publishable_tz3Z-l0mhyIUz9RdxipooQ_Iij4mME-';
   const SK = 'alula_sb_session';
   const configured = !/^__/.test(KEY);
-  let s = null;
-  try { s = JSON.parse(localStorage.getItem(SK) || 'null'); } catch (e) { s = null; }
+  const read = () => { try { return JSON.parse(localStorage.getItem(SK) || 'null'); } catch (e) { return null; } };
+  let s = read();
   const save = () => { try { s ? localStorage.setItem(SK, JSON.stringify(s)) : localStorage.removeItem(SK); } catch (e) {} };
   const ar = () => (document.documentElement.lang || 'ar').startsWith('ar');
   const T = (a, b) => (ar() ? a : b);
+  /* the session ended without the user asking (expired / refused): pages keep their unsent data and ask to sign in again */
+  const lost = () => { s = null; save(); document.dispatchEvent(new CustomEvent('sb:signout', { detail: { user: false } })); };
 
   async function auth(grant, body) {
     const r = await fetch(`${URL_}/auth/v1/token?grant_type=${grant}`, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -2768,27 +2770,36 @@ window.SB = (() => {
   const signIn = (email, password) => auth('password', { email, password });
   let refreshing = null;
   async function token() {
+    /* another tab of this site may already have renewed the session: use its copy */
+    const st = read();
+    if (st && (!s || (st.expires_at || 0) > (s.expires_at || 0))) s = st;
     if (!s) return null;
     if (Date.now() / 1000 < s.expires_at - 60) return s.access_token;
-    if (!refreshing) refreshing = auth('refresh_token', { refresh_token: s.refresh_token }).catch(e => { if (e.status === 400 || e.status === 401) { s = null; save(); } throw e; }).finally(() => { refreshing = null; });
+    if (!refreshing) refreshing = auth('refresh_token', { refresh_token: s.refresh_token })
+      .catch(e => { const st2 = read(); if (st2 && st2.access_token !== (s && s.access_token) && Date.now() / 1000 < st2.expires_at - 60) { s = st2; return s; } if (e.status === 400 || e.status === 401) lost(); throw e; })
+      .finally(() => { refreshing = null; });
     await refreshing; return s && s.access_token;
   }
+  /* sign-out chosen by the user */
   function signOut() {
     const t = s && s.access_token;
     if (t) fetch(`${URL_}/auth/v1/logout`, { method: 'POST', headers: { apikey: KEY, Authorization: 'Bearer ' + t } }).catch(() => {});
     s = null; save();
-    document.dispatchEvent(new CustomEvent('sb:signout'));
+    document.dispatchEvent(new CustomEvent('sb:signout', { detail: { user: true } }));
   }
   async function rest(path, { method = 'GET', body, headers = {} } = {}) {
     const t = await token();
     if (!t) { const e = new Error('auth'); e.status = 401; throw e; }
     const r = await fetch(`${URL_}/rest/v1/${path}`, { method, headers: { apikey: KEY, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
-    if (r.status === 401) { s = null; save(); document.dispatchEvent(new CustomEvent('sb:signout')); }
-    if (!r.ok) { const j = await r.json().catch(() => ({})); const e = new Error(j.message || String(r.status)); e.status = r.status; e.code = j.code; e.details = j.details; throw e; }
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401 && /jwt|token|expired/i.test(j.message || j.code || '')) lost();
+      const e = new Error(j.message || String(r.status)); e.status = r.status; e.code = j.code; e.details = j.details; throw e;
+    }
     const txt = await r.text(); return txt ? JSON.parse(txt) : null;
   }
   const rpc = (fn, args) => rest('rpc/' + fn, { method: 'POST', body: args || {} });
-  /* every row of a table, 1000 at a time */
+  /* every row of a table, 1000 at a time (stable order required) */
   async function all(table, query) {
     const out = [];
     for (let from = 0; ; from += 1000) {
@@ -2798,10 +2809,12 @@ window.SB = (() => {
   }
 
   /* full-screen sign-in card; resolves when signed in */
+  let gating = null;
   function gate(opts = {}) {
     if (s) return Promise.resolve(s);
-    return new Promise(resolve => {
-      const css = `.sbg{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:16px;background:#F8F4EF;font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif;color:#3D3936}
+    if (gating) return gating;
+    gating = new Promise(resolve => {
+      const css = `.sbg{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:16px;background:rgba(248,244,239,.97);font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif;color:#3D3936}
 .sbg form{width:100%;max-width:380px;background:#fff;border:1px solid #E7E1D8;border-radius:18px;padding:28px 24px;box-shadow:0 18px 40px -18px rgba(20,51,45,.35);display:flex;flex-direction:column;gap:14px}
 .sbg .sbg-ic{width:52px;height:52px;border-radius:14px;background:#E3EAE8;color:#14332D;display:grid;place-items:center;margin:0 auto}
 .sbg .sbg-ic svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -2810,10 +2823,12 @@ window.SB = (() => {
 .sbg input{height:44px;border:1px solid #D9D4CC;border-radius:10px;padding:0 12px;font:inherit;font-size:15px;direction:ltr;text-align:left}
 .sbg input:focus{outline:none;border-color:#14332D;box-shadow:0 0 0 3px rgba(20,51,45,.15)}
 .sbg button{height:46px;border:0;border-radius:10px;background:#14332D;color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
-.sbg button:disabled{opacity:.6;cursor:default}.sbg .sbg-err{min-height:18px;font-size:13px;color:#B5523B;text-align:center}`;
+.sbg button:disabled{opacity:.6;cursor:default}.sbg .sbg-err{min-height:18px;font-size:13px;color:#B5523B;text-align:center}
+.sbg .sbg-note{margin:0;font-size:12.5px;color:#986018;text-align:center;line-height:1.7}`;
       const el = document.createElement('div'); el.className = 'sbg'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
       el.innerHTML = `<style>${css}</style><form novalidate><span class="sbg-ic"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
         <h1>${T('تسجيل الدخول', 'Sign in')}</h1><p>${opts.sub || T('بوابات مركز الزراعة — العلا', 'AlUla Agriculture Center portals')}</p>
+        ${opts.note ? `<p class="sbg-note">${opts.note}</p>` : ''}
         <label>${T('البريد الإلكتروني', 'Email')}<input name="email" type="email" autocomplete="username" required></label>
         <label>${T('كلمة المرور', 'Password')}<input name="password" type="password" autocomplete="current-password" required></label>
         <button type="submit">${T('دخول', 'Sign in')}</button><div class="sbg-err" aria-live="polite"></div></form>`;
@@ -2822,13 +2837,14 @@ window.SB = (() => {
       setTimeout(() => f.elements.email.focus(), 50);
       f.addEventListener('submit', async e => {
         e.preventDefault(); err.textContent = ''; btn.disabled = true;
-        try { await signIn(f.elements.email.value.trim(), f.elements.password.value); el.remove(); resolve(s); }
+        try { await signIn(f.elements.email.value.trim(), f.elements.password.value); el.remove(); gating = null; resolve(s); }
         catch (x) { err.textContent = x.status === 400 ? T('البريد أو كلمة المرور غير صحيحة', 'Wrong email or password') : T('تعذّر الاتصال — تحقق من الإنترنت', 'Cannot connect — check the internet'); }
         finally { btn.disabled = false; }
       });
     });
+    return gating;
   }
-  return { configured, signIn, signOut, rest, rpc, all, gate, get signedIn() { return !!s; }, get email() { return s && s.user && s.user.email; } };
+  return { configured, signIn, signOut, rest, rpc, all, gate, get signedIn() { if (!s) s = read(); return !!s; }, get email() { return s && s.user && s.user.email; } };
 })();
 
 /* ═══════════ Styled Excel (.xlsx) export — no library, works offline ═══════════
@@ -3707,7 +3723,12 @@ window.toast=(o=>function(m,err){m=String(m??'');const x=m.match(/^([^A-Za-z؀-�
 /* new IDs continue from the last existing record (L-2144 → L-2145); numbers left by deleted or test entries are not skipped to */
 window.nid=function(pfx,list){return pfx+'-'+String(Math.max(0,...list.map(i=>ridNum(i.rid)).filter(n=>isFinite(n)))+1).padStart(3,'0')};
 /* ── shared data (Supabase): every device reads and writes the same database after signing in with the team account ──
-   The browser keeps a copy (works offline); changes are queued and sent, other devices' changes are pulled every 30 s. */
+   Safety rules:
+   • every local change is queued in this browser (alu_sync_q) until the database confirms it — nothing is dropped on errors,
+     on lost sessions or when the page is closed;
+   • an edit sends only the fields this device changed: if another device changed the same record meanwhile,
+     both changes are kept (3-way merge against the version this device started from);
+   • other devices' changes are pulled every 30 s, reading only what changed (change_log). */
 const SYNC=(()=>{
   const ON=!!(window.SB&&SB.configured),KINDS=['sellers','buyers','lots'],PFX={sellers:'S',buyers:'B',lots:'L'},QK='alu_sync_q';
   let LAST=null,REV=null,Q=[],busy=false,err='',timer=null,pendingRender=false,lastOk=0,blobs=false,emptyDb=false;
@@ -3715,20 +3736,25 @@ const SYNC=(()=>{
   const T=(a,b)=>UI.t(a,b);
   const tgt=()=>VIEW_YEAR===2026?D:(KEEP26||D);
   const snap=k=>{const m=new Map();(tgt()[k]||[]).forEach(r=>m.set(r.id,JSON.stringify(r)));return m};
-  const saveQ=()=>{try{localStorage.setItem(QK,JSON.stringify(Q))}catch(e){}};
+  const saveQ=()=>{try{localStorage.setItem(QK,JSON.stringify(Q))}catch(e){toast(T('⚠️ تعذّر حفظ التعديلات على هذا الجهاز — لا تغلق الصفحة قبل اكتمال المزامنة','⚠️ Could not keep changes on this device — keep the page open until synced'),true)}};
   const cacheLocal=()=>{if(VIEW_YEAR===2026)KINDS.forEach(k=>{try{localStorage.setItem(LS+k,JSON.stringify(D[k]))}catch(e){}})};
   const rerender=()=>{if(!$('modalBg').hidden)pendingRender=true;else renderAll()};
-  /* local change → queue: compare with what the database last had */
+  const same=(a,b)=>JSON.stringify(a===undefined?null:a)===JSON.stringify(b===undefined?null:b);
+  const inList=ids=>'('+ids.map(x=>'"'+String(x).replace(/["\\]/g,'')+'"').join(',')+')';
+  /* local change → queue; "base" = the record as this device last had it from the database */
   function diff(k){if(!LAST)return;const cur=snap(k),old=LAST[k];
-    cur.forEach((j,id)=>{if(old.get(id)!==j){Q=Q.filter(o=>!(o.k===k&&o.id===id));Q.push({k,id,op:'up',r:JSON.parse(j)})}});
+    cur.forEach((j,id)=>{if(old.get(id)!==j){const prev=Q.find(o=>o.k===k&&o.id===id);const base=prev?prev.base:old.get(id);
+      Q=Q.filter(o=>!(o.k===k&&o.id===id));Q.push({k,id,op:'up',r:JSON.parse(j),base})}});
     old.forEach((_,id)=>{if(!cur.has(id)){Q=Q.filter(o=>!(o.k===k&&o.id===id));Q.push({k,id,op:'del'})}});
     LAST[k]=cur;saveQ()}
   function apply(data){const t=tgt();
-    KINDS.forEach(k=>{const m=new Map((data[k]||[]).map(r=>[r.id,r]));
-      Q.filter(o=>o.k===k).forEach(o=>{if(o.op==='del')m.delete(o.id);else m.set(o.id,o.r)});   /* unsent local changes win */
+    KINDS.forEach(k=>{if(!data[k])return;const m=new Map(data[k].map(r=>[r.id,r]));
+      Q.filter(o=>o.k===k).forEach(o=>{if(o.op==='del')m.delete(o.id);else m.set(o.id,o.r)});   /* unsent local changes stay on top */
       t[k]=[...m.values()]});
     if(VIEW_YEAR===2026){try{normalize()}catch(e){}}
-    LAST={};KINDS.forEach(k=>LAST[k]=snap(k));cacheLocal();rerender()}
+    LAST={};KINDS.forEach(k=>LAST[k]=snap(k));
+    Q.forEach(o=>{if(o.op==='up'&&LAST[o.k])LAST[o.k].set(o.id,JSON.stringify(o.r))});
+    cacheLocal();rerender()}
   /* 2025 comparison data lives in the database too (it holds names) */
   async function loadBlobs(){if(blobs)return;
     const rows=await SB.rest('app_blobs?select=data&key=eq.season2025');
@@ -3747,45 +3773,72 @@ const SYNC=(()=>{
       try{await SB.rest('auction_records?on_conflict=kind,id',{...UPS,body:[{kind:k,id:r.id,data:r}]});return}
       catch(e){if(e.code!=='23505')throw e;
         /* the number was taken on another device at the same time: take the next free one */
-        const used=await SB.all('auction_records',`select=rid&kind=eq.${k}`);
+        const used=await SB.all('auction_records',`select=rid&kind=eq.${k}&order=id.asc`);
         const mx=Math.max(0,...used.map(x=>ridNum(x.rid)),...(tgt()[k]||[]).map(x=>ridNum(x.rid)));
-        const from=r.rid;r.rid=PFX[k]+'-'+String(mx+1).padStart(3,'0');rename(k,r.id,from,r.rid);ren.push(k)}}
+        const from=r.rid;r.rid=PFX[k]+'-'+String(mx+1).padStart(3,'0');rename(k,r.id,from,r.rid);ren.add(k)}}
     throw new Error('rid')}
   async function put(k,recs,ren){for(let i=0;i<recs.length;i+=400){const part=recs.slice(i,i+400);
       try{await SB.rest('auction_records?on_conflict=kind,id',{...UPS,body:part.map(r=>({kind:k,id:r.id,data:r}))})}
       catch(e){if(e.code!=='23505')throw e;for(const r of part)await putOne(k,r,ren)}}}
-  async function pull(){if(!ON||!SB.signedIn||busy||Q.length)return;busy=true;paint();
+  /* edits: keep what other devices changed meanwhile, apply only the fields this device changed */
+  async function merge(k,ops){const ed=ops.filter(o=>o.op==='up'&&o.base);if(!ed.length)return false;let changed=false;
+    for(let i=0;i<ed.length;i+=100){const part=ed.slice(i,i+100);
+      const rows=await SB.rest(`auction_records?kind=eq.${k}&id=in.${inList(part.map(o=>o.id))}&select=id,data`);const sv=new Map(rows.map(x=>[x.id,x.data]));
+      part.forEach(o=>{const cur=sv.get(o.id);if(!cur)return;const base=JSON.parse(o.base),m={...cur};let any=false;
+        new Set([...Object.keys(o.r),...Object.keys(base)]).forEach(f=>{if(!same(o.r[f],base[f])){if(o.r[f]===undefined)delete m[f];else m[f]=o.r[f]}});
+        Object.keys(m).forEach(f=>{if(!same(m[f],o.r[f]))any=true});
+        if(any){o.r=m;const rec=(tgt()[k]||[]).find(x=>x.id===o.id);if(rec){Object.keys(rec).forEach(f=>{if(!(f in m))delete rec[f]});Object.assign(rec,m)}changed=true}})}
+    return changed}
+  async function fullLoad(){const rows=await SB.all('auction_records','select=kind,id,data&order=kind.asc,id.asc');
+    const data={sellers:[],buyers:[],lots:[]};rows.forEach(x=>{if(data[x.kind])data[x.kind].push(x.data)});return {rows:rows.length,data}}
+  async function pull(){if(!ON||!SB.signedIn||busy)return;busy=true;paint();
     try{await loadBlobs();
       const rev=await SB.rpc('data_rev',{p_tbl:'auction'});
-      if(rev!==REV||!LAST){
-        const rows=await SB.all('auction_records','select=kind,id,data&order=kind.asc,id.asc');
-        if(!rows.length){const t=tgt(),n=KINDS.reduce((a,k)=>a+(t[k]||[]).length,0);
-          if(n){/* first device with data: upload it */for(const k of KINDS)await put(k,t[k]||[],[]);REV=null;busy=false;return pull()}
+      if(LAST&&REV!==null&&rev===REV){/* nothing new */}
+      else if(LAST&&REV!==null&&rev>REV){
+        /* only what changed since the last read */
+        const log=await SB.rest(`change_log?tbl=eq.auction&id=gt.${REV}&select=id,kind,rec_id,op&order=id.asc`,{headers:{Range:'0-999','Range-Unit':'items'}});
+        if(log.length>=1000){const f=await fullLoad();REV=rev;apply(f.data)}
+        else{const lastOp=new Map();log.forEach(e=>lastOp.set(e.kind+'|'+e.rec_id,e));const t=tgt(),data={};
+          for(const k of KINDS){const m=new Map((t[k]||[]).map(r=>[r.id,r])),ids=[];
+            lastOp.forEach(e=>{if(e.kind!==k)return;if(e.op==='delete')m.delete(e.rec_id);else ids.push(e.rec_id)});
+            for(let i=0;i<ids.length;i+=100){const rows=await SB.rest(`auction_records?kind=eq.${k}&id=in.${inList(ids.slice(i,i+100))}&select=id,data`);rows.forEach(x=>m.set(x.id,x.data))}
+            data[k]=[...m.values()]}
+          REV=log.length?log[log.length-1].id:rev;apply(data)}}
+      else{const f=await fullLoad();
+        if(!f.rows){const t=tgt(),n=KINDS.reduce((a,k)=>a+(t[k]||[]).length,0);
+          if(n){/* first device with data: upload it */const ren=new Set();for(const k of KINDS)await put(k,t[k]||[],ren);busy=false;REV=null;LAST=null;return pull()}
           emptyDb=true}
         else emptyDb=false;
-        const data={sellers:[],buyers:[],lots:[]};rows.forEach(x=>{if(data[x.kind])data[x.kind].push(x.data)});REV=rev;apply(data)}
+        REV=rev;apply(f.data)}
       err='';lastOk=Date.now()}
-    catch(e){err=e.status===401?'auth':navigator.onLine?'server':'offline';if(e.status===401)gate()}
+    catch(e){err=e.status===401?'auth':navigator.onLine?'server':'offline'}
     busy=false;paint()}
   async function flush(){if(!ON||!SB.signedIn||busy||!Q.length||!navigator.onLine){paint();return}busy=true;paint();
-    try{const ren=[];
+    try{const ren=new Set();let merged=false;
       for(const k of KINDS){const ops=Q.filter(o=>o.k===k);if(!ops.length)continue;
+        if(await merge(k,ops))merged=true;
         await put(k,ops.filter(o=>o.op==='up').map(o=>o.r),ren);
         const dels=ops.filter(o=>o.op==='del').map(o=>o.id);
-        for(let i=0;i<dels.length;i+=100)await SB.rest(`auction_records?kind=eq.${k}&id=in.(${dels.slice(i,i+100).map(x=>'"'+String(x).replace(/"/g,'')+'"').join(',')})`,{method:'DELETE',headers:{Prefer:'return=minimal'}});
-        const sent=new Set(ops.map(o=>o.id+'|'+JSON.stringify(o.r||'')));Q=Q.filter(o=>!(o.k===k&&sent.has(o.id+'|'+JSON.stringify(o.r||''))));saveQ()}
-      if(ren.length){KINDS.forEach(k=>{LAST[k]=snap(k)});cacheLocal();diff('lots');rerender()}
-      REV=null;err='';lastOk=Date.now()}
-    catch(e){err=e.status===401?'auth':navigator.onLine?'server':'offline';if(e.status===401)gate()}
+        for(let i=0;i<dels.length;i+=100)await SB.rest(`auction_records?kind=eq.${k}&id=in.${inList(dels.slice(i,i+100))}`,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+        const done=new Set(ops);Q=Q.filter(o=>!done.has(o));
+        ops.forEach(o=>{if(LAST&&LAST[k]){if(o.op==='del')LAST[k].delete(o.id);else LAST[k].set(o.id,JSON.stringify(o.r))}});saveQ()}
+      if(ren.size){ren.forEach(k=>{if(k!=='lots'&&LAST)LAST[k]=snap(k)});diff('lots');if(LAST)LAST.lots=LAST.lots||snap('lots')}
+      if(merged||ren.size){cacheLocal();rerender()}
+      err='';lastOk=Date.now()}
+    catch(e){err=e.status===401?'auth':navigator.onLine?'server':'offline';if(e.status===401&&!SB.signedIn)gate()}
     busy=false;paint();
-    if(Q.length){clearTimeout(timer);timer=setTimeout(flush,15000)}else pull()}
+    if(Q.length){clearTimeout(timer);timer=setTimeout(()=>sync(),15000)}else pull()}
+  /* send first, then read; a send that keeps failing never stops this device from seeing the others' changes */
+  async function sync(){if(Q.length)await flush();if(!busy)await pull()}
   function paint(){if(!ON)return;let el=$('syncPill');
     if(!el){const h=document.querySelector('.hdr-end');if(!h)return;
       h.insertAdjacentHTML('afterbegin',`<button type="button" id="syncPill" class="sync-pill"></button><button type="button" id="sbOut" class="sync-out" title="${T('تسجيل الخروج','Sign out')}" aria-label="${T('تسجيل الخروج','Sign out')}"><svg class="i"><use href="#i-logout"/></svg></button>`);
-      el=$('syncPill');el.onclick=()=>{Q.length?flush():(REV=null,pull())};
-      $('sbOut').onclick=()=>askConfirm(T('تسجيل الخروج؟ تُمسح نسخة البيانات من هذا الجهاز، وتبقى في قاعدة البيانات.','Sign out? The copy of the data on this device is removed; it stays in the database.'),T('خروج','Sign out'),()=>SB.signOut())}
+      el=$('syncPill');el.onclick=()=>{REV=null;sync()};
+      $('sbOut').onclick=()=>{if(Q.length){toast(T('⚠️ لا يمكن الخروج: ','⚠️ Cannot sign out: ')+Q.length+T(' تعديل لم يُرسل بعد. اتصل بالإنترنت وانتظر حتى يظهر «متزامن».',' change(s) not sent yet. Connect and wait for “Synced”.'),true);sync();return}
+        askConfirm(T('تسجيل الخروج؟ تُمسح نسخة البيانات من هذا الجهاز، وتبقى في قاعدة البيانات.','Sign out? The copy of the data on this device is removed; it stays in the database.'),T('خروج','Sign out'),()=>SB.signOut())}}
     const n=Q.length;let c,m;
-    if(!SB.signedIn){c='off';m=T('غير مسجّل الدخول','Not signed in')}
+    if(!SB.signedIn){c='err';m=n?T('سجّل الدخول لإرسال ','Sign in to send ')+n:T('غير مسجّل الدخول','Not signed in')}
     else if(busy){c='busy';m=T('جارٍ المزامنة…','Syncing…')}
     else if(err==='offline'){c='off';m=n?T('غير متصل · ','Offline · ')+n+T(' بانتظار الإرسال',' waiting'):T('غير متصل','Offline')}
     else if(err){c='err';m=n?T('تعذّر الإرسال · ','Not sent · ')+n:T('تعذّر الاتصال','Cannot connect')}
@@ -3795,17 +3848,25 @@ const SYNC=(()=>{
     el.className='sync-pill '+c;el.innerHTML=`<i></i><span>${m}</span>`;
     el.title=(SB.email?SB.email+' · ':'')+(lastOk?T('آخر مزامنة: ','Last sync: ')+new Date(lastOk).toLocaleTimeString(UI.lang==='ar'?'ar-SA-u-ca-gregory-nu-latn':'en-GB'):'')}
   let gating=null;
-  function gate(){if(gating)return gating;gating=SB.gate({sub:T('مزاد تمور العلا 2026','AlUla Date Auction 2026')}).then(()=>{gating=null;REV=null;paint();Q.length?flush():pull()});return gating}
-  function start(){if(!ON)return;LAST={};KINDS.forEach(k=>LAST[k]=snap(k));paint();
+  function gate(){if(gating)return gating;paint();
+    gating=SB.gate({sub:T('مزاد تمور العلا 2026','AlUla Date Auction 2026'),note:Q.length?T('تعديلاتك محفوظة على هذا الجهاز (','Your changes are kept on this device (')+Q.length+T(') وتُرسل بعد الدخول.',') and are sent after you sign in.'):''})
+      .then(()=>{gating=null;REV=null;paint();sync()});return gating}
+  function start(){if(!ON)return;LAST={};KINDS.forEach(k=>LAST[k]=snap(k));Q.forEach(o=>{if(o.op==='up')LAST[o.k].set(o.id,JSON.stringify(o.r))});paint();
     window.saveLS=(o=>function(k){const r=o.apply(this,arguments);if(VIEW_YEAR===2026&&KINDS.includes(k)){diff(k);clearTimeout(timer);timer=setTimeout(flush,300)}return r})(window.saveLS);
     window.closeModal=(o=>function(){const r=o.apply(this,arguments);if(pendingRender&&$('modalBg').hidden){pendingRender=false;renderAll()}return r})(window.closeModal);
-    /* signing out removes this device's copy of the data */
-    document.addEventListener('sb:signout',()=>{try{KINDS.forEach(k=>localStorage.removeItem(LS+k));localStorage.removeItem(LS+'autobackup');localStorage.removeItem(QK)}catch(e){}location.reload()});
-    window.addEventListener('online',()=>{err='';Q.length?flush():pull()});window.addEventListener('offline',()=>{err='offline';paint()});
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)Q.length?flush():pull()});
-    setInterval(()=>{if(!document.hidden)Q.length?flush():pull()},30000);
-    if(!SB.signedIn)gate();else Q.length?flush():pull()}
-  return {start,pull,flush,get queue(){return Q.length}};
+    /* restoring an old local copy would overwrite the shared data — the daily backups replace it */
+    window.restoreBackup=function(){toast(T('ℹ️ غير متاح مع قاعدة البيانات المشتركة — النسخ الاحتياطية اليومية محفوظة في GitHub.','ℹ️ Not available with the shared database — daily backups are kept on GitHub.'),true)};
+    document.addEventListener('sb:signout',e=>{
+      if(e.detail&&e.detail.user){/* chosen by the user (only allowed with nothing pending): remove this device's copy */
+        try{KINDS.forEach(k=>localStorage.removeItem(LS+k));localStorage.removeItem(LS+'autobackup');if(!Q.length)localStorage.removeItem(QK)}catch(x){}location.reload()}
+      else{err='auth';gate()}});   /* session expired: keep everything, ask to sign in again */
+    window.addEventListener('online',()=>{err='';sync()});window.addEventListener('offline',()=>{err='offline';paint()});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+    /* closing the page with unsent changes: the browser asks first */
+    window.addEventListener('beforeunload',e=>{if(Q.length){e.preventDefault();e.returnValue=''}});
+    setInterval(()=>{if(!document.hidden)sync()},30000);
+    if(!SB.signedIn)gate();else sync()}
+  return {start,pull,flush,sync,get queue(){return Q.length},get rev(){return REV}};
 })();
 UI.init();
 SYNC.start();
