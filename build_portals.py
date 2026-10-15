@@ -37,7 +37,15 @@ ADAPTER = r'''<script src="../assets/sb.js"></script>
 (()=>{if(!window.SB||!SB.configured)return;
   window.post=async function(p){
     if(p.action==='submit'){await SB.rest('surveys?on_conflict=record_id',{method:'POST',body:[{record_id:p.record.recordId,data:p.record}],headers:{Prefer:'resolution=merge-duplicates,return=minimal'}});return {ok:true,recordId:p.record.recordId}}
-    if(p.action==='list'){const rows=await SB.all('surveys','select=data&order=record_id.asc');return {ok:true,records:rows.map(r=>r.data)}}
+    if(p.action==='delete'){await SB.rest('surveys?record_id=eq.'+encodeURIComponent(p.recordId),{method:'DELETE',headers:{Prefer:'return=minimal'}});return {ok:true}}
+    if(p.action==='list'){const rows=await SB.all('surveys','select=data&order=record_id.asc');
+      const del=new Set(window.surveyPendingDeletes?surveyPendingDeletes():[]),list=rows.map(r=>r.data).filter(r=>r&&!del.has(r.recordId)),ids=new Set(list.map(r=>r.recordId));
+      /* surveys deleted on another device: drop this device's copy, but only of ones it had already seen in the register and has nothing unsent for */
+      const SEEN='dates-survey-seen-v1';let seen=[];try{seen=JSON.parse(localStorage.getItem(SEEN)||'[]')||[]}catch(e){}
+      const gone=seen.filter(id=>!ids.has(id)&&!outbox.includes(id));
+      if(gone.length&&(list.length||gone.length<=3)){records=records.filter(r=>!gone.includes(r.recordId));persistRecords()}
+      try{localStorage.setItem(SEEN,JSON.stringify([...ids]))}catch(e){}
+      return {ok:true,records:list}}
     return {ok:false,error:'unknown_action'}};
   const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}};
   /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */

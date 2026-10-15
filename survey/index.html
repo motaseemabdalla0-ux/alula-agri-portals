@@ -562,13 +562,276 @@ document.addEventListener('focusout',e=>{const i=e.target;if(i&&i.classList&&i.c
 window.checkAllNumbers=function(){prepAll();let ok=true;document.querySelectorAll('input.num').forEach(i=>{normalize(i);if(!check(i))ok=false});return ok};
 prepAll();new MutationObserver(prepAll).observe(document.body,{childList:true,subtree:true});
 })();
-</script><script src="../assets/sb.js"></script>
+</script><script id="survey-addon">
+/* XLSX writer: copy of alula-date-auction/src/xlsx.js */
+/* ═══════════ Styled Excel (.xlsx) export — no library, works offline ═══════════
+   Every CSV the core builds is turned into a formatted workbook: title, export info, coloured header,
+   number formats, zebra rows, totals, section titles, right-to-left sheet, frozen header and filters. */
+const XLSX=(()=>{
+const enc=new TextEncoder();
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0};
+async function deflate(u){if(typeof CompressionStream==='undefined')return null;try{const s=new Blob([u]).stream().pipeThrough(new CompressionStream('deflate-raw'));return new Uint8Array(await new Response(s).arrayBuffer())}catch(e){return null}}
+async function zipAsync(files){const out=[];for(const [n,s] of files){const raw=enc.encode(s),z=await deflate(raw);out.push([n,raw,z])}return zipBytes(out)}
+function zip(files){return zipBytes(files.map(([n,s])=>[n,enc.encode(s),null]))}
+function zipBytes(files){const parts=[],cen=[];let off=0;const d=new Date(),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  files.forEach(([name,raw,z])=>{const nb=enc.encode(name),c=crc32(raw),m=z?8:0,data=z||raw;
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,m,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);h.setUint32(14,c,true);h.setUint32(18,data.length,true);h.setUint32(22,raw.length,true);h.setUint16(26,nb.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nb,data);
+    const e=new DataView(new ArrayBuffer(46));e.setUint32(0,0x02014b50,true);e.setUint16(4,20,true);e.setUint16(6,20,true);e.setUint16(8,0x0800,true);e.setUint16(10,m,true);e.setUint16(12,tm,true);e.setUint16(14,dt,true);e.setUint32(16,c,true);e.setUint32(20,data.length,true);e.setUint32(24,raw.length,true);e.setUint16(28,nb.length,true);e.setUint32(42,off,true);
+    cen.push(new Uint8Array(e.buffer),nb);off+=30+nb.length+data.length});
+  const cs=cen.reduce((s,a)=>s+a.length,0),end=new DataView(new ArrayBuffer(22));end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cs,true);end.setUint32(16,off,true);
+  const all=[...parts,...cen,new Uint8Array(end.buffer)],out=new Uint8Array(all.reduce((s,a)=>s+a.length,0));let p=0;all.forEach(a=>{out.set(a,p);p+=a.length});return out}
+const X=s=>String(s??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const col=i=>{let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26}return s};
+/* style ids (cellXfs order below) */
+const S={title:1,sub:2,head:3,txt:4,int:5,dec2:6,dec3:7,pct:8,txtZ:9,intZ:10,dec2Z:11,dec3Z:12,pctZ:13,sec:14,totT:15,totI:16,totD2:17,totD3:18,totP:19,dec1:20,dec1Z:21,totD1:22};
+const STYLES=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="4"><numFmt numFmtId="164" formatCode="#,##0.000"/><numFmt numFmtId="165" formatCode="0.0&quot;%&quot;"/><numFmt numFmtId="166" formatCode="#,##0.0"/><numFmt numFmtId="167" formatCode="#,##0.00"/></numFmts>
+<fonts count="7"><font><sz val="11"/><color rgb="FF101828"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="16"/><color rgb="FF298459"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="10"/><color rgb="FF747E8A"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="12"/><color rgb="FF1F6B47"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FF101828"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="11"/><color rgb="FF101828"/><name val="Calibri"/><family val="2"/></font></fonts>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF298459"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFF6F8F6"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFEAF4EE"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFDCEFE3"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left style="thin"><color rgb="FFE4E7EC"/></left><right style="thin"><color rgb="FFE4E7EC"/></right><top style="thin"><color rgb="FFE4E7EC"/></top><bottom style="thin"><color rgb="FFE4E7EC"/></bottom><diagonal/></border>
+<border><left style="thin"><color rgb="FFB7D9C4"/></left><right style="thin"><color rgb="FFB7D9C4"/></right><top style="medium"><color rgb="FF298459"/></top><bottom style="medium"><color rgb="FF298459"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="23">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="167" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="164" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="6" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="6" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="167" fontId="6" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="164" fontId="6" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="6" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="5" fillId="5" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="5" fillId="5" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="167" fontId="5" fillId="5" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="164" fontId="5" fillId="5" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="5" fillId="5" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="166" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="166" fontId="6" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="166" fontId="5" fillId="5" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+/* column kind from its header → number format */
+function kindOf(h){h=String(h||'');
+  if(/Mobile|Contact$|Phone|ID|IDs|Card|CR No|Email|Date|رقم|الجوال|السجل|تاريخ/i.test(h)&&!/Batches|الدفعات/.test(h))return 'text';
+  if(/%|نسبة البيع|الحصة/.test(h))return 'pct';
+  if(/(^|\W)t(\W|$)|\(t\)|طن/.test(h))return 'dec3';
+  if(/SAR|Price|Value|Amount|Sales|السعر|المبلغ|المبيعات|القيمة/.test(h))return 'dec2';
+  if(/kg|كجم|Weight$/i.test(h))return 'dec1';
+  return 'int'}
+const isNum=v=>typeof v==='number'||(/^-?\d+(\.\d+)?$/.test(String(v))&&!/^0\d/.test(String(v))&&String(v).length<15);
+const width=s=>{s=String(s??'');let w=0;for(const ch of s)w+=/[؀-ۿ]/.test(ch)?1.15:1;return w};
+
+/* one worksheet from a table of rows; opt: {title, sub, rtl, headerMap, cellMap} */
+function sheetOf(data,opt,meta){
+  const ncol=Math.max(1,...data.map(r=>r.length));
+  const cls=[];let prevBlank=true;
+  data.forEach(r=>{const ne=r.filter(c=>String(c??'').trim()!=='');
+    if(!ne.length){cls.push('blank');prevBlank=true;return}
+    if(prevBlank){cls.push('head');prevBlank=false;return}
+    cls.push(r.slice(0,3).some(c=>/TOTAL|الإجمالي/.test(String(c)))?'total':'data')});
+  let curHead=[];const kinds=data.map((r,i)=>{if(cls[i]==='head')curHead=r.map(kindOf);return curHead});
+  const xml=[],widths=new Array(ncol).fill(8),merges=[];let rn=0;
+  const cell=(c,r,v,s,forceText)=>{const ref=col(c)+r;if(v===''||v===null||v===undefined)return `<c r="${ref}" s="${s}"/>`;
+    if(!forceText&&isNum(v))return `<c r="${ref}" s="${s}"><v>${+v}</v></c>`;return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${X(v)}</t></is></c>`};
+  rn++;xml.push(`<row r="${rn}" ht="30" customHeight="1">${cell(0,rn,opt.title,S.title,1)}</row>`);merges.push(`A${rn}:${col(ncol-1)}${rn}`);
+  rn++;xml.push(`<row r="${rn}" ht="18" customHeight="1">${cell(0,rn,opt.sub,S.sub,1)}</row>`);merges.push(`A${rn}:${col(ncol-1)}${rn}`);
+  if(meta){rn++;xml.push(`<row r="${rn}" ht="18" customHeight="1">${cell(0,rn,meta,S.sub,1)}</row>`);merges.push(`A${rn}:${col(ncol-1)}${rn}`)}
+  rn++;xml.push(`<row r="${rn}" ht="8" customHeight="1"/>`);
+  let firstHead=0,lastDataRow=0,zebra=0;
+  data.forEach((r,i)=>{const k=cls[i];rn++;
+    if(k==='blank'){xml.push(`<row r="${rn}" ht="10" customHeight="1"/>`);return}
+    if(k==='head'){if(!firstHead)firstHead=rn;zebra=0;const hs=r.map(h=>opt.headerMap(h));hs.forEach((h,c)=>widths[c]=Math.max(widths[c],Math.min(28,width(h)*0.9+2)));
+      xml.push(`<row r="${rn}" ht="34" customHeight="1">${hs.map((h,c)=>cell(c,rn,h,S.head,1)).join('')}</row>`);return}
+    const z=k==='data'&&(zebra++%2===1),kk=kinds[i];
+    const st=(c,v)=>{const kd=kk[c]||'int';if(kd==='text'||!isNum(v))return k==='total'?S.totT:z?S.txtZ:S.txt;
+      if(k==='total')return {pct:S.totP,dec3:S.totD3,dec2:S.totD2,dec1:S.totD1,int:S.totI}[kd];
+      return z?{pct:S.pctZ,dec3:S.dec3Z,dec2:S.dec2Z,dec1:S.dec1Z,int:S.intZ}[kd]:{pct:S.pct,dec3:S.dec3,dec2:S.dec2,dec1:S.dec1,int:S.int}[kd]};
+    const vals=Array.from({length:ncol},(_,c)=>opt.cellMap(r[c]??''));
+    vals.forEach((v,c)=>widths[c]=Math.max(widths[c],Math.min(40,width(v)+3)));
+    xml.push(`<row r="${rn}" ht="20" customHeight="1">${vals.map((v,c)=>cell(c,rn,v,st(c,v),kk[c]==='text')).join('')}</row>`);if(k==='data')lastDataRow=rn});
+  const fz=!!firstHead;
+  const out=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+<dimension ref="A1:${col(ncol-1)}${rn}"/>
+<sheetViews><sheetView ${opt.rtl?'rightToLeft="1" ':''}showGridLines="0" workbookViewId="0">${fz?`<pane ySplit="${firstHead}" topLeftCell="A${firstHead+1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${firstHead+1}" sqref="A${firstHead+1}"/>`:''}</sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="18"/>
+<cols>${widths.map((w,c)=>`<col min="${c+1}" max="${c+1}" width="${Math.round(w*10)/10}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${xml.join('')}</sheetData>
+${fz&&lastDataRow?`<autoFilter ref="A${firstHead}:${col(ncol-1)}${lastDataRow}"/>`:''}
+<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>
+<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
+<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+<headerFooter><oddFooter>&amp;C&amp;P / &amp;N</oddFooter></headerFooter>
+</worksheet>`;
+  return {xml:out,fz,firstHead,lastDataRow,ncol}}
+const sheetName=(s,used)=>{let n=String(s||'Data').replace(/[\\/?*[\]:]/g,' ').trim().slice(0,31)||'Data',b=n,i=2;while(used.has(n))n=b.slice(0,28)+' '+(i++);used.add(n);return n};
+const Q=n=>"'"+X(n).replace(/'/g,"''")+"'";
+/* rows → workbook files. Reports are split at their section titles (single-cell rows): one sheet per section. */
+function build(rows,opt){
+  const data=rows.map(r=>r.slice());let meta='';
+  if(opt.report&&data.length){meta=opt.meta||data[0].filter(Boolean).join('   ·   ');data.shift()}
+  const parts=[{name:opt.sheet,rows:[]}];
+  data.forEach(r=>{const ne=r.filter(c=>String(c??'').trim()!=='');
+    if(opt.report&&ne.length===1&&r.length===1&&parts[parts.length-1].rows.length){parts.push({name:opt.headerMap(ne[0]),rows:[]});return}
+    parts[parts.length-1].rows.push(r)});
+  parts.forEach(p=>{while(p.rows.length&&!p.rows[0].some(c=>String(c??'').trim()))p.rows.shift()});
+  const used=new Set(),sheets=parts.filter(p=>p.rows.length).map((p,i)=>Object.assign(sheetOf(p.rows,Object.assign({},opt,{title:i?opt.title+' — '+p.name:opt.title}),meta),{name:sheetName(p.name,used)}));
+  const ct=sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
+  const dn=sheets.map((s,i)=>s.fz&&s.lastDataRow?`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${Q(s.name)}!$A$${s.firstHead}:$${col(s.ncol-1)}$${s.lastDataRow}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="${i}">${Q(s.name)}!$${s.firstHead}:$${s.firstHead}</definedName>`:'').join('');
+  return [['[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${ct}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`],
+    ['_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`],
+    ['docProps/core.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${X(opt.title)}</dc:title><dc:creator>AlUla Date Auction</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0,19)}Z</dcterms:created></cp:coreProperties>`],
+    ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${X(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets>${dn?`<definedNames>${dn}</definedNames>`:''}</workbook>`],
+    ['xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml',STYLES],...sheets.map((s,i)=>[`xl/worksheets/sheet${i+1}.xml`,s.xml])]}
+return {build:(r,o)=>zip(build(r,o)),buildAsync:(r,o)=>zipAsync(build(r,o))};
+})();
+
+/* ═════════ Saved surveys: ⋯ menu (details / edit / delete) and formatted Excel export ═════════ */
+(()=>{
+  /* deletions wait here until the central register confirms them (offline-safe) */
+  const DEL_KEY='dates-survey-deletes-v1';
+  let pendingDel=[];try{pendingDel=JSON.parse(localStorage.getItem(DEL_KEY)||'[]')||[]}catch{}
+  const saveDel=()=>{try{localStorage.setItem(DEL_KEY,JSON.stringify(pendingDel))}catch{}};
+  window.surveyPendingDeletes=()=>pendingDel.slice();
+  async function flushDeletes(){if(!ENDPOINT||!pendingDel.length||!navigator.onLine)return;
+    for(const id of [...pendingDel]){try{const j=await post({action:'delete',recordId:id});if(j&&j.ok){pendingDel=pendingDel.filter(x=>x!==id);saveDel()}else break}catch{break}}}
+  const so=window.syncOutbox;window.syncOutbox=async function(...a){const r=await so.apply(this,a);await flushDeletes();return r};
+
+  /* edit: the saved survey goes back into the form; saving keeps its id, date and any extra fields */
+  let editOrig=null;
+  const od=window.data;window.data=function(){const d=od();if(editOrig&&activeRecordId===editOrig.recordId)return {...editOrig,...d,surveyDate:editOrig.surveyDate||d.surveyDate,recordId:editOrig.recordId};return d};
+  const bar=document.createElement('div');bar.id='editBar';bar.className='edit-bar hidden';bar.innerHTML='<span>✎ تعديل استبيان محفوظ: <b></b></span><button type="button">إلغاء التعديل</button>';
+  const form=$('survey');form.prepend(bar);bar.querySelector('button').onclick=()=>resetForm('أُلغي التعديل — استبيان جديد');
+  const showBar=r=>{bar.classList.toggle('hidden',!r);if(r)bar.querySelector('b').textContent=r.farmer||'—'};
+  function resetForm(msg){editOrig=null;activeRecordId=null;showBar(null);form.reset();try{$('collector').value=localStorage.getItem(COLLECTOR_KEY)||''}catch{}
+    $('regionOther').classList.add('hidden');$('regionOther').required=false;for(const k of ROW_KINDS){$(k).replaceChildren();addRow(k)}clearLocation();toggleLoc(false);$('coordInput').value='';$('errors').textContent='';
+    try{localStorage.removeItem(KEY)}catch{}syncAll();update();$('status').textContent=msg||''}
+  const ns=window.newSurvey;window.newSurvey=function(...a){const r=ns.apply(this,a);if(activeRecordId===null){editOrig=null;showBar(null)}return r};
+  const sub=form.onsubmit;form.onsubmit=function(e){const before=editOrig&&editOrig.recordId;const r=sub.call(this,e);
+    if(before&&activeRecordId===before&&records.some(x=>x.recordId===before)){editOrig={...records.find(x=>x.recordId===before)}}return r};
+  function fillForm(s){form.reset();
+    for(const k of ['collector','farmer','region','regionOther','trees','production','productionValue'])$(k).value=s[k]??'';
+    $('regionOther').classList.toggle('hidden',s.region!=='أخرى');$('regionOther').required=s.region==='أخرى';
+    clearLocation();if(s.location&&Number.isFinite(Number(s.location.lat)))setLocation(Number(s.location.lat),Number(s.location.lng),s.location.source||'map',s.location.accuracy??null,true);
+    const c=s.citrus||{};$('citrusTrees').value=c.trees??'';$('citrusProduction').value=c.production??'';$('citrusValue').value=c.productionValue??'';
+    for(const [k,list] of [['varieties',s.varieties],['operations',s.operations],['citrusVarieties',c.varieties],['citrusOperations',c.operations]]){
+      $(k).replaceChildren();const L=Array.isArray(list)?list.filter(x=>x&&(x.choice||x.quantity)):[];if(L.length)L.forEach(x=>addRow(k,x));else if(!OP_KINDS.includes(k))addRow(k)}
+    OP_KINDS.forEach(buildOps);syncAll();update()}
+  function editRecord(r){if(!confirm('فتح استبيان «'+(r.farmer||'—')+'» للتعديل؟ أي بيانات غير محفوظة في النموذج الآن ستُستبدل.'))return;
+    editOrig={...r};activeRecordId=r.recordId;fillForm(r);showBar(r);showView(false);window.scrollTo({top:0});
+    $('status').textContent='تعديل استبيان محفوظ — عدّل البيانات ثم اضغط «حفظ وإرسال».';toast('فُتح الاستبيان للتعديل')}
+  function deleteRecord(r){if(!confirm('حذف استبيان المزارع «'+(r.farmer||'—')+'» نهائياً؟\nسيُحذف من هذا الجهاز ومن السجل المركزي.'))return;
+    const id=r.recordId;records=records.filter(x=>x.recordId!==id);persistRecords();
+    const wasQueued=outbox.includes(id);outbox=outbox.filter(x=>x!==id);saveOutbox();selectedIds.delete(id);
+    try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&d.recordId===id)localStorage.removeItem(KEY)}catch{}
+    if(activeRecordId===id)resetForm('');
+    if(ENDPOINT){if(!pendingDel.includes(id))pendingDel.push(id);saveDel();flushDeletes().then(renderSync)}
+    renderRecords();renderSync();toast(wasQueued&&!ENDPOINT?'تم الحذف':'تم حذف الاستبيان')}
+
+  /* ⋯ menu on every row */
+  const DOTS='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+  const IC={view:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',edit:'<path d="M13 21h8"/><path d="M21.2 6.8a2.8 2.8 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8L2 21.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z"/>',del:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>'};
+  let menu=null;const closeMenu=()=>{if(menu){menu.remove();menu=null}document.querySelectorAll('.rec-kb.on').forEach(b=>b.classList.remove('on'))};
+  function openMenu(btn,r){const was=btn.classList.contains('on');closeMenu();if(was)return;btn.classList.add('on');
+    menu=document.createElement('div');menu.className='rec-menu';menu.setAttribute('role','menu');
+    menu.innerHTML=[['view','عرض التفاصيل'],['edit','تعديل'],['del','حذف']].map(([k,t])=>`<button type="button" role="menuitem" data-a="${k}" class="${k==='del'?'del':''}"><span class="ic"><svg viewBox="0 0 24 24">${IC[k]}</svg></span>${t}</button>`).join('');
+    menu.onclick=e=>{const b=e.target.closest('button');if(!b)return;closeMenu();({view:()=>showDetail(r),edit:()=>editRecord(r),del:()=>deleteRecord(r)})[b.dataset.a]()};
+    document.body.append(menu);const rc=btn.getBoundingClientRect(),w=menu.offsetWidth,h=menu.offsetHeight;
+    let x=rc.left;x=Math.max(8,Math.min(innerWidth-w-8,x));let y=rc.bottom+4;if(y+h>innerHeight-8)y=rc.top-h-4;menu.style.left=x+'px';menu.style.top=y+'px';menu.querySelector('button').focus()}
+  document.addEventListener('click',e=>{if(menu&&!e.target.closest('.rec-menu,.rec-kb'))closeMenu()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+  document.addEventListener('scroll',e=>{if(menu&&!(e.target.closest&&e.target.closest('.rec-menu')))closeMenu()},true);
+  const rr=window.renderRecords;window.renderRecords=function(...a){const out=rr.apply(this,a);const list=[...filteredRecords()].reverse();
+    [...$('recordsBody').children].forEach((tr,i)=>{const r=list[i];const td=tr.lastElementChild;if(!r||!td||!td.querySelector('button'))return;
+      td.textContent='';td.className='rec-act';const b=document.createElement('button');b.type='button';b.className='rec-kb';b.innerHTML=DOTS;b.title='خيارات';b.setAttribute('aria-label','خيارات استبيان '+(r.farmer||''));
+      b.onclick=e=>{e.stopPropagation();openMenu(b,r)};td.append(b)});return out};
+
+  /* Excel: formatted workbook — one sheet per survey, one sheet per variety / operation */
+  const num=v=>v===''||v==null||isNaN(Number(v))?'':Number(v);
+  const name=i=>i.choice==='أخرى'?(i.custom||'أخرى'):(i.choice||'');
+  const filled=l=>(Array.isArray(l)?l:[]).filter(i=>i&&(i.choice||i.quantity));
+  const en=v=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2});   /* Excel uses Western digits throughout */
+  const txt=l=>filled(l).map(i=>name(i)+(i.quantity!==''&&i.quantity!=null?' ('+en(i.quantity)+' كجم)':'')).join('، ');
+  window.exportRecordsXLSX=async function(){const L=exportScope();if(!L.length){toast('لا توجد استبيانات للتحميل','err');return}
+    const now=new Date(),day=now.toISOString().slice(0,10);
+    const head=['معرف الاستبيان','تاريخ الاستبيان','الباحث الميداني','اسم المزارع','رقم الجوال','المنطقة','عدد النخيل','إنتاج التمور (كجم)','قيمة التمور (ريال)','أصناف التمور','العمليات على التمور','أشجار الحمضيات','إنتاج الحمضيات (كجم)','قيمة الحمضيات (ريال)','أصناف الحمضيات','رابط موقع المزرعة'];
+    const rows=[[ (selectedIds.size?'النطاق: الاستبيانات المحددة':'النطاق: كل النتائج المعروضة')+' · عدد الاستبيانات: '+en(L.length) ],head];
+    const tot={t:0,p:0,v:0,ct:0,cp:0,cv:0};
+    for(const r of L){const c=r.citrus||{};const p=productionOf(r);
+      tot.t+=Number(r.trees)||0;tot.p+=Number(p)||0;tot.v+=Number(r.productionValue)||0;tot.ct+=Number(c.trees)||0;tot.cp+=Number(c.production)||0;tot.cv+=Number(c.productionValue)||0;
+      rows.push([r.recordId,r.surveyDate||(r.savedAt||'').slice(0,10),r.collector||'',r.farmer||(r.source==='farmer-app'?'تطبيق المزارع':''),r.phone||'',regionOf(r)||'',num(r.trees),num(p),num(r.productionValue),txt(r.varieties),txt(r.operations),num(c.trees),num(c.production),num(c.productionValue),txt(c.varieties),r.location?mapsUrl(r.location):''])}
+    rows.push(['','','','الإجمالي','','',tot.t,tot.p,tot.v,'','',tot.ct,tot.cp,tot.cv,'','']);
+    rows.push([],['الأصناف والعمليات'],['معرف الاستبيان','تاريخ الاستبيان','اسم المزارع','المنطقة','المحصول','النوع','الصنف / العملية','الكمية (كجم)','القيمة (ريال)']);
+    for(const r of L){const c=r.citrus||{},base=[r.recordId,r.surveyDate||'',r.farmer||'',regionOf(r)||''];
+      filled(r.varieties).forEach(i=>rows.push([...base,'التمور','صنف',name(i),num(i.quantity),num(i.value)]));
+      filled(r.operations).forEach(i=>rows.push([...base,'التمور','عملية',name(i),num(i.quantity),num(i.value)]));
+      filled(c.varieties).forEach(i=>rows.push([...base,'الحمضيات','صنف',name(i),num(i.quantity),num(i.value)]));
+      filled(c.operations).forEach(i=>rows.push([...base,'الحمضيات','عملية',name(i),num(i.quantity),num(i.value)]))}
+    try{const bytes=await XLSX.buildAsync(rows,{report:true,rtl:true,sheet:'الاستبيانات',title:'استبيان إنتاج التمور والحمضيات',
+        sub:'الهيئة الملكية لمحافظة العلا — مركز الزراعة · تاريخ التصدير: '+now.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{day:'numeric',month:'long',year:'numeric'})+' '+now.toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'}),
+        headerMap:h=>h,cellMap:v=>v});
+      exportDownload(bytes,'استبيانات-التمور-'+day+'.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      $('recordStatus').textContent='تم تحميل ملف Excel: صفحة «الاستبيانات» (صف لكل مزرعة مع الإجمالي) وصفحة «الأصناف والعمليات».'}
+    catch(e){console.error(e);toast('تعذّر إنشاء ملف Excel — جرّب CSV','err')}};
+  const m=$('exportMenu');if(m){const b=document.createElement('button');b.type='button';b.className='menu-item';b.textContent='تحميل Excel (منسّق)';b.onclick=()=>{exportRecordsXLSX();toggleExport(false)};m.prepend(b);
+    const csv=[...m.querySelectorAll('button')].find(x=>/CSV/.test(x.textContent));if(csv)csv.textContent='تحميل CSV (بيانات خام)'}
+
+  const st=document.createElement('style');st.textContent=`
+.edit-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#FCF3E1;border:1px solid #EBD3A0;color:#7A5208;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:14px}
+.edit-bar.hidden{display:none}.edit-bar button{border:1px solid #D9B66E;background:#fff;color:#7A5208;border-radius:8px;padding:6px 12px;font-weight:600}
+td.rec-act{width:1%;text-align:center}
+.rec-kb{display:inline-grid;place-items:center;width:34px;height:34px;padding:0!important;border-radius:8px;border:1px solid transparent!important;background:transparent!important;color:var(--n-600,#4B5158)}
+.rec-kb svg{width:20px;height:20px;fill:currentColor}
+.rec-kb:hover,.rec-kb.on{background:var(--g-50,#EAF7EF)!important;border-color:var(--g-200,#A9D9BB)!important;color:var(--g-600,#166B37)}
+.rec-menu{position:fixed;z-index:1000;min-width:170px;background:#fff;border:1px solid var(--border,#E3E6EA);border-radius:12px;box-shadow:0 16px 40px rgba(16,20,24,.16);padding:5px}
+.rec-menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;border-radius:8px;padding:8px 10px;font:inherit;font-size:14px;font-weight:600;color:var(--text,#16181B);text-align:start;cursor:pointer}
+.rec-menu button:hover,.rec-menu button:focus-visible{background:var(--g-50,#EAF7EF);outline:none}
+.rec-menu .ic{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--g-50,#EAF7EF);color:var(--g-600,#166B37)}
+.rec-menu .ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rec-menu button.del{color:#B3341F}.rec-menu button.del .ic{background:#FBEAE7;color:#B3341F}.rec-menu button.del:hover{background:#FBEAE7}`;
+  document.head.append(st);
+  renderRecords();
+})();
+</script>
+<script src="../assets/sb.js"></script>
 <script>
 /* the survey's central register is the shared database: same calls ("submit", "list"), answered by Supabase */
 (()=>{if(!window.SB||!SB.configured)return;
   window.post=async function(p){
     if(p.action==='submit'){await SB.rest('surveys?on_conflict=record_id',{method:'POST',body:[{record_id:p.record.recordId,data:p.record}],headers:{Prefer:'resolution=merge-duplicates,return=minimal'}});return {ok:true,recordId:p.record.recordId}}
-    if(p.action==='list'){const rows=await SB.all('surveys','select=data&order=record_id.asc');return {ok:true,records:rows.map(r=>r.data)}}
+    if(p.action==='delete'){await SB.rest('surveys?record_id=eq.'+encodeURIComponent(p.recordId),{method:'DELETE',headers:{Prefer:'return=minimal'}});return {ok:true}}
+    if(p.action==='list'){const rows=await SB.all('surveys','select=data&order=record_id.asc');
+      const del=new Set(window.surveyPendingDeletes?surveyPendingDeletes():[]),list=rows.map(r=>r.data).filter(r=>r&&!del.has(r.recordId)),ids=new Set(list.map(r=>r.recordId));
+      /* surveys deleted on another device: drop this device's copy, but only of ones it had already seen in the register and has nothing unsent for */
+      const SEEN='dates-survey-seen-v1';let seen=[];try{seen=JSON.parse(localStorage.getItem(SEEN)||'[]')||[]}catch(e){}
+      const gone=seen.filter(id=>!ids.has(id)&&!outbox.includes(id));
+      if(gone.length&&(list.length||gone.length<=3)){records=records.filter(r=>!gone.includes(r.recordId));persistRecords()}
+      try{localStorage.setItem(SEEN,JSON.stringify([...ids]))}catch(e){}
+      return {ok:true,records:list}}
     return {ok:false,error:'unknown_action'}};
   const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}};
   /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */
