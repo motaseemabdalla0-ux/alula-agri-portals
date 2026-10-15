@@ -740,7 +740,7 @@ return {build:(r,o)=>zip(build(r,o)),buildAsync:(r,o)=>zipAsync(build(r,o))};
     const c=s.citrus||{};$('citrusTrees').value=c.trees??'';$('citrusProduction').value=c.production??'';$('citrusValue').value=c.productionValue??'';
     for(const [k,list] of [['varieties',s.varieties],['operations',s.operations],['citrusVarieties',c.varieties],['citrusOperations',c.operations]]){
       $(k).replaceChildren();const L=Array.isArray(list)?list.filter(x=>x&&(x.choice||x.quantity)):[];if(L.length)L.forEach(x=>addRow(k,x));else if(!OP_KINDS.includes(k))addRow(k)}
-    OP_KINDS.forEach(buildOps);syncAll();update()}
+    OP_KINDS.forEach(buildOps);syncAll();update();document.dispatchEvent(new CustomEvent('survey:filled',{detail:s}))}
   function editRecord(r){if(!confirm('فتح استبيان «'+(r.farmer||'—')+'» للتعديل؟ أي بيانات غير محفوظة في النموذج الآن ستُستبدل.'))return;
     editOrig={...r};activeRecordId=r.recordId;fillForm(r);showBar(r);showView(false);window.scrollTo({top:0});
     $('status').textContent='تعديل استبيان محفوظ — عدّل البيانات ثم اضغط «حفظ وإرسال».';toast('فُتح الاستبيان للتعديل')}
@@ -816,6 +816,79 @@ td.rec-act{width:1%;text-align:center}
   document.head.append(st);
   renderRecords();
 })();
+
+/* ═════════ Farmer: phone field, suggestions from known farmers, researcher name kept on the device ═════════ */
+(()=>{
+  /* researcher name: saved as soon as it is typed, and put back on every new survey */
+  const col=$('collector');
+  const keepCol=()=>{try{const v=col.value.trim();if(v)localStorage.setItem(COLLECTOR_KEY,v)}catch{}};
+  col.addEventListener('input',keepCol);col.addEventListener('change',keepCol);
+  const fillCol=()=>{try{if(!col.value.trim())col.value=localStorage.getItem(COLLECTOR_KEY)||''}catch{}};
+  fillCol();
+  const fx=window.newSurvey;window.newSurvey=function(...a){const r=fx.apply(this,a);fillCol();update();return r};
+  $('survey').addEventListener('reset',()=>setTimeout(()=>{fillCol();update()},0));
+
+  /* phone field next to the farmer's name */
+  const farmerLabel=$('farmer').closest('label');
+  const pl=document.createElement('label');pl.innerHTML='رقم جوال المزارع <span class="phone-field"><input name="phone" id="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="5XXXXXXXX" dir="ltr" autocomplete="off"></span><small class="field-hint" id="phoneHint"></small>';
+  farmerLabel.after(pl);
+  const phoneKey=v=>{let d=String(v||'').replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g,'');if(d.startsWith('966'))d=d.slice(3);if(d.startsWith('0'))d=d.slice(1);return d};
+  const phoneOk=v=>!v||/^5\d{8}$/.test(phoneKey(v));
+  $('phone').addEventListener('input',()=>{$('phone').setAttribute('aria-invalid',String(!phoneOk($('phone').value)));$('phoneHint').textContent=phoneOk($('phone').value)?'':'9 أرقام تبدأ بـ 5'});
+
+  /* link to the auction seller (or an earlier survey) the farmer was picked from */
+  let link=null;
+  const od=window.data;window.data=function(){const d=od();d.phone=phoneKey($('phone').value);
+    if(link&&$('farmer').value.trim()===link.name){d.farmerLink={source:link.source,rid:link.rid||'',farmId:link.farmId||''}}else delete d.farmerLink;return d};
+  const ov=window.validate;window.validate=function(){const ok=ov();$('phone').setAttribute('aria-invalid','false');$('phoneHint').textContent='';if(!phoneOk($('phone').value)){$('phone').setAttribute('aria-invalid','true');$('phoneHint').textContent='9 أرقام تبدأ بـ 5';if(ok){$('phone').focus();toast('رقم الجوال غير صحيح — 9 أرقام تبدأ بـ 5','err')}return false}return ok};
+  /* editing a saved survey shows its phone and link too */
+  document.addEventListener('survey:filled',e=>{const r=e.detail||{};$('phone').value=r.phone||'';link=r.farmerLink?{...r.farmerLink,name:r.farmer}:null});
+  $('survey').addEventListener('reset',()=>{link=null;$('phoneHint').textContent=''});
+
+  /* suggestions while typing the farmer's name: auction sellers + farmers of earlier surveys */
+  let FARMERS=[];
+  window.surveySetFarmers=list=>{FARMERS=Array.isArray(list)?list:[]};
+  const N=s=>String(s||'').toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[ً-ْـ]/g,'').replace(/\s+/g,' ').trim();
+  const regionOpts=[...$('region').options].map(o=>o.value).filter(v=>v&&v!=='أخرى');
+  function setRegion(v){if(!v)return;const ar=String(v).split(' / ')[0].trim();const m=regionOpts.find(o=>N(o)===N(ar));
+    if(m){$('region').value=m;$('regionOther').classList.add('hidden');$('regionOther').required=false}
+    else{$('region').value='أخرى';$('regionOther').classList.remove('hidden');$('regionOther').required=true;$('regionOther').value=ar}
+    syncSelect($('region'))}
+  function candidates(q){const qn=N(q),qp=phoneKey(q),seen=new Set(),out=[];
+    const pool=[...FARMERS,...records.map(r=>({name:r.farmer,phone:r.phone||'',region:r.region==='أخرى'?r.regionOther:r.region,source:'survey',when:r.surveyDate}))];
+    for(const f of pool){if(!f.name)continue;const n=N(f.name);
+      const hit=qn.length>=2&&n.includes(qn)||qp.length>=4&&phoneKey(f.phone).includes(qp);if(!hit)continue;
+      const k=n+'|'+phoneKey(f.phone);if(seen.has(k))continue;seen.add(k);out.push({...f,score:n.startsWith(qn)?0:n.split(' ').some(w=>w.startsWith(qn))?1:2})}
+    return out.sort((a,b)=>a.score-b.score||(a.source===b.source?0:a.source==='auction'?-1:1)).slice(0,8)}
+  let box=null,items=[],idx=-1;
+  const hide=()=>{if(box)box.hidden=true;idx=-1};
+  function show(){const q=$('farmer').value;items=candidates(q);if(!items.length){hide();return}
+    if(!box){box=document.createElement('div');box.className='fm-box';document.body.append(box);box.addEventListener('mousedown',e=>{const o=e.target.closest('.fm-op');e.preventDefault();if(o)pick(+o.dataset.i)})}
+    box.innerHTML=`<div class="fm-h">مزارعون مسجّلون — اختر لتعبئة البيانات تلقائياً</div>`+items.map((f,i)=>`<div class="fm-op" data-i="${i}"><b>${esc(f.name)}</b><span>${[f.rid?`<bdi>${esc(f.rid)}</bdi>`:'',f.phone?`<bdi dir="ltr">${esc('0'+phoneKey(f.phone))}</bdi>`:'',f.region?esc(String(f.region).split(' / ')[0]):''].filter(Boolean).join(' · ')}</span><em class="${f.source}">${f.source==='auction'?'من بيانات المزاد':'من استبيان سابق'}</em></div>`).join('');
+    const r=$('farmer').getBoundingClientRect(),w=Math.max(r.width,300);box.style.width=w+'px';box.style.top=(r.bottom+4)+'px';box.style.left=Math.max(8,Math.min(innerWidth-w-8,r.right-w))+'px';box.hidden=false}
+  function pick(i){const f=items[i];if(!f)return;hide();$('farmer').value=f.name;if(f.phone)$('phone').value=phoneKey(f.phone);setRegion(f.region);
+    link={source:f.source,rid:f.rid||'',farmId:f.farmId||'',name:f.name};update();$('trees').focus();toast('تمت تعبئة بيانات المزارع')}
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  $('farmer').addEventListener('input',show);$('farmer').addEventListener('focus',()=>{if($('farmer').value)show()});
+  $('farmer').addEventListener('blur',()=>setTimeout(hide,150));
+  $('farmer').addEventListener('keydown',e=>{if(!box||box.hidden)return;const ops=[...box.querySelectorAll('.fm-op')];
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();idx=(idx+(e.key==='ArrowDown'?1:-1)+ops.length)%ops.length;ops.forEach((o,j)=>o.classList.toggle('on',j===idx))}
+    else if(e.key==='Enter'&&idx>=0){e.preventDefault();pick(idx)}else if(e.key==='Escape')hide()});
+  document.addEventListener('scroll',()=>{if(box&&!box.hidden)hide()},true);
+
+  const st=document.createElement('style');st.textContent=`
+.phone-field{display:block}.phone-field input{text-align:left;letter-spacing:.5px}
+.field-hint{display:block;min-height:0;font-size:12px;color:#B3341F;font-weight:600}
+input[aria-invalid=true]{border-color:#B3341F!important}
+.fm-box{position:fixed;z-index:1000;background:#fff;border:1px solid var(--border,#E3E6EA);border-radius:12px;box-shadow:0 16px 40px rgba(16,20,24,.16);max-height:330px;overflow-y:auto}
+.fm-h{position:sticky;top:0;background:var(--g-50,#EAF7EF);color:var(--g-700,#145235);font-size:12px;font-weight:700;padding:8px 12px;border-bottom:1px solid var(--border,#E3E6EA)}
+.fm-op{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 12px;border-bottom:1px solid var(--n-100,#EEF0F2);cursor:pointer}
+.fm-op:hover,.fm-op.on{background:var(--g-50,#EAF7EF)}
+.fm-op b{font-size:14px}.fm-op span{grid-column:1;font-size:12px;color:var(--text-muted,#6B7280)}
+.fm-op em{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px}
+.fm-op em.auction{background:#E3EAE8;color:#14332D}.fm-op em.survey{background:#FCF3E1;color:#7A5208}`;
+  document.head.append(st);
+})();
 </script>
 <script src="../assets/sb.js"></script>
 <script>
@@ -833,7 +906,26 @@ td.rec-act{width:1%;text-align:center}
       try{localStorage.setItem(SEEN,JSON.stringify([...ids]))}catch(e){}
       return {ok:true,records:list}}
     return {ok:false,error:'unknown_action'}};
-  const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}};
+  /* farmers registered in the auction: suggested while typing the farmer's name (kept for offline use) */
+  const FK='dates-survey-farmers-cache';
+  try{const c=JSON.parse(localStorage.getItem(FK)||'null');if(c&&window.surveySetFarmers)surveySetFarmers(c)}catch(e){}
+  async function loadFarmers(){try{const rows=await SB.all('auction_records','select=data&kind=eq.sellers&order=id.asc');
+    const list=rows.map(r=>r.data).filter(s=>s&&s.sellerName).map(s=>({name:s.sellerName,phone:s.contactNumber||'',region:s.region||'',farmId:s.farmId||'',rid:s.rid||'',source:'auction'}));
+    if(window.surveySetFarmers)surveySetFarmers(list);try{localStorage.setItem(FK,JSON.stringify(list))}catch(e){}}catch(e){}}
+  setInterval(()=>{if(!document.hidden&&SB.signedIn)loadFarmers()},10*60*1000);
+  /* header: switch to the auction, sync now */
+  const tb=document.querySelector('.topbar');
+  if(tb){tb.insertAdjacentHTML('beforeend',`<nav class="pt-sw" aria-label="البوابات"><a href="../auction/">المزاد</a><a class="on" aria-current="page">الاستبيان</a></nav><button type="button" class="pt-sync" title="مزامنة الآن: إرسال المعلّق وجلب آخر البيانات"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg><span>مزامنة</span></button>`);
+    const sb=tb.querySelector('.pt-sync');sb.onclick=async()=>{if(sb.classList.contains('busy'))return;sb.classList.add('busy');
+      try{if(!SB.signedIn)await SB.gate({sub:'استبيان إنتاج التمور والحمضيات'});await syncOutbox(true);await pullFromServer(false);await loadFarmers()}finally{sb.classList.remove('busy')}};
+    const st=document.createElement('style');st.textContent=`.pt-sw{display:inline-flex;background:var(--n-100,#EEF0F2);border-radius:999px;padding:3px;gap:2px;flex-shrink:0}
+.pt-sw a{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;color:var(--text-muted,#6B7280);text-decoration:none}
+.pt-sw a.on{background:#fff;color:var(--g-600,#166B37);box-shadow:0 1px 2px rgba(16,20,24,.08)}.pt-sw a:not(.on):hover{color:var(--g-600,#166B37)}
+.pt-sync{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--border,#E3E6EA);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--g-600,#166B37);flex-shrink:0}
+.pt-sync svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pt-sync.busy svg{animation:ptspin 1s linear infinite}@keyframes ptspin{to{transform:rotate(360deg)}}
+@media(max-width:760px){.pt-sync span{display:none}.pt-sync{padding:0 9px}.tb-date{display:none!important}}`;document.head.append(st)}
+  const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}loadFarmers()};
   /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */
   document.addEventListener('sb:signout',e=>{if(e.detail&&e.detail.user)location.reload();else SB.gate({sub,note:'إجاباتك محفوظة على هذا الجهاز وتُرسل بعد الدخول.'}).then(after)});
   SB.gate({sub}).then(after);

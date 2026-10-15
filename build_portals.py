@@ -47,7 +47,26 @@ ADAPTER = r'''<script src="../assets/sb.js"></script>
       try{localStorage.setItem(SEEN,JSON.stringify([...ids]))}catch(e){}
       return {ok:true,records:list}}
     return {ok:false,error:'unknown_action'}};
-  const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}};
+  /* farmers registered in the auction: suggested while typing the farmer's name (kept for offline use) */
+  const FK='dates-survey-farmers-cache';
+  try{const c=JSON.parse(localStorage.getItem(FK)||'null');if(c&&window.surveySetFarmers)surveySetFarmers(c)}catch(e){}
+  async function loadFarmers(){try{const rows=await SB.all('auction_records','select=data&kind=eq.sellers&order=id.asc');
+    const list=rows.map(r=>r.data).filter(s=>s&&s.sellerName).map(s=>({name:s.sellerName,phone:s.contactNumber||'',region:s.region||'',farmId:s.farmId||'',rid:s.rid||'',source:'auction'}));
+    if(window.surveySetFarmers)surveySetFarmers(list);try{localStorage.setItem(FK,JSON.stringify(list))}catch(e){}}catch(e){}}
+  setInterval(()=>{if(!document.hidden&&SB.signedIn)loadFarmers()},10*60*1000);
+  /* header: switch to the auction, sync now */
+  const tb=document.querySelector('.topbar');
+  if(tb){tb.insertAdjacentHTML('beforeend',`<nav class="pt-sw" aria-label="البوابات"><a href="../auction/">المزاد</a><a class="on" aria-current="page">الاستبيان</a></nav><button type="button" class="pt-sync" title="مزامنة الآن: إرسال المعلّق وجلب آخر البيانات"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg><span>مزامنة</span></button>`);
+    const sb=tb.querySelector('.pt-sync');sb.onclick=async()=>{if(sb.classList.contains('busy'))return;sb.classList.add('busy');
+      try{if(!SB.signedIn)await SB.gate({sub:'استبيان إنتاج التمور والحمضيات'});await syncOutbox(true);await pullFromServer(false);await loadFarmers()}finally{sb.classList.remove('busy')}};
+    const st=document.createElement('style');st.textContent=`.pt-sw{display:inline-flex;background:var(--n-100,#EEF0F2);border-radius:999px;padding:3px;gap:2px;flex-shrink:0}
+.pt-sw a{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;color:var(--text-muted,#6B7280);text-decoration:none}
+.pt-sw a.on{background:#fff;color:var(--g-600,#166B37);box-shadow:0 1px 2px rgba(16,20,24,.08)}.pt-sw a:not(.on):hover{color:var(--g-600,#166B37)}
+.pt-sync{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--border,#E3E6EA);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--g-600,#166B37);flex-shrink:0}
+.pt-sync svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pt-sync.busy svg{animation:ptspin 1s linear infinite}@keyframes ptspin{to{transform:rotate(360deg)}}
+@media(max-width:760px){.pt-sync span{display:none}.pt-sync{padding:0 9px}.tb-date{display:none!important}}`;document.head.append(st)}
+  const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}loadFarmers()};
   /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */
   document.addEventListener('sb:signout',e=>{if(e.detail&&e.detail.user)location.reload();else SB.gate({sub,note:'إجاباتك محفوظة على هذا الجهاز وتُرسل بعد الدخول.'}).then(after)});
   SB.gate({sub}).then(after);
