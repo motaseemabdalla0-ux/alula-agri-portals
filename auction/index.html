@@ -1251,6 +1251,10 @@ table.t td.act{width:1%;padding-inline:6px!important}
 #sbSync{color:var(--primary)}#sbSync.spin .i{animation:sbspin 1s linear infinite}@keyframes sbspin{to{transform:rotate(360deg)}}
 @media(max-width:760px){.pt-sw a{padding:5px 9px;font-size:12px}}
 @media print{.pt-sw,#sbSync{display:none!important}}
+.pt-home{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#E3EAE8;color:var(--primary);font-size:13px;font-weight:700;text-decoration:none;flex-shrink:0}
+.pt-home:hover{background:#D3DFDB}.pt-home svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+@media(max-width:760px){.pt-home span{display:none}.pt-home{padding:0 9px}}
+@media print{.pt-home{display:none!important}}
 
 </style>
 <script>
@@ -3844,7 +3848,7 @@ const SYNC=(()=>{
   function paint(){if(!ON)return;let el=$('syncPill');
     if(!el){const h=document.querySelector('.hdr-end');if(!h)return;
       const site=/\/auction\/?$/.test(location.pathname);   /* on the website: switch to the survey portal */
-      h.insertAdjacentHTML('afterbegin',(site?`<nav class="pt-sw" aria-label="${T('البوابات','Portals')}"><a class="on" aria-current="page">${T('المزاد','Auction')}</a><a href="../survey/">${T('الاستبيان','Survey')}</a></nav>`:'')+`<button type="button" id="syncPill" class="sync-pill"></button><button type="button" id="sbSync" class="sync-out" title="${T('مزامنة الآن: إرسال المعلّق وجلب آخر البيانات','Sync now: send pending and fetch the latest')}" aria-label="${T('مزامنة الآن','Sync now')}"><svg class="i"><use href="#i-sync"/></svg></button><button type="button" id="sbOut" class="sync-out" title="${T('تسجيل الخروج','Sign out')}" aria-label="${T('تسجيل الخروج','Sign out')}"><svg class="i"><use href="#i-logout"/></svg></button>`);
+      h.insertAdjacentHTML('afterbegin',(site?`<a class="pt-home" href="../" title="${T('العودة إلى البوابات','Back to the portals')}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg><span>${T('البوابات','Portals')}</span></a>`:'')+`<button type="button" id="syncPill" class="sync-pill"></button><button type="button" id="sbSync" class="sync-out" title="${T('مزامنة الآن: إرسال المعلّق وجلب آخر البيانات','Sync now: send pending and fetch the latest')}" aria-label="${T('مزامنة الآن','Sync now')}"><svg class="i"><use href="#i-sync"/></svg></button><button type="button" id="sbOut" class="sync-out" title="${T('تسجيل الخروج','Sign out')}" aria-label="${T('تسجيل الخروج','Sign out')}"><svg class="i"><use href="#i-logout"/></svg></button>`);
       el=$('syncPill');el.onclick=()=>sync();
       $('sbSync').onclick=async()=>{if(!SB.signedIn){gate();return}if($('sbSync').classList.contains('spin')&&busy){for(let i=0;i<240&&busy;i++)await new Promise(r=>setTimeout(r,250))}await sync();toast(Q.length?T('⚠️ ما زال ','⚠️ Still ')+Q.length+T(' تعديل بانتظار الإرسال',' change(s) waiting'):err?T('⚠️ تعذّر الاتصال — حاول مرة أخرى','⚠️ Could not connect — try again'):T('✓ تمت المزامنة — البيانات محدّثة','✓ Synced — data is up to date'),!!(Q.length||err))};
       $('sbOut').onclick=()=>{if(Q.length){toast(T('⚠️ لا يمكن الخروج: ','⚠️ Cannot sign out: ')+Q.length+T(' تعديل لم يُرسل بعد. اتصل بالإنترنت وانتظر حتى يظهر «متزامن».',' change(s) not sent yet. Connect and wait for “Synced”.'),true);sync();return}
