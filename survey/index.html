@@ -924,7 +924,7 @@ input[aria-invalid=true]{border-color:#B3341F!important}
 .pt-sync{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--border,#E3E6EA);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--g-600,#166B37);flex-shrink:0}
 .pt-sync svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .pt-sync.busy svg{animation:ptspin 1s linear infinite}@keyframes ptspin{to{transform:rotate(360deg)}}
-@media(max-width:760px){.pt-sync span{display:none}.pt-sync{padding:0 9px}.tb-date{display:none!important}}`;document.head.append(st)}
+@media(max-width:760px){.pt-sync span{display:none}.pt-sync{padding:0 9px}.tb-date{display:none!important}.topbar{gap:8px!important;padding:0 10px!important}.topbar .crumbs{display:none!important}.topbar .sync-pill #syncText{display:none}.topbar .sync-pill{padding:0 10px!important}.pt-sw a{padding:5px 10px;font-size:12px}}`;document.head.append(st)}
   const sub='استبيان إنتاج التمور والحمضيات',after=()=>{try{syncOutbox();pullFromServer(true)}catch(e){}loadFarmers()};
   /* chosen sign-out reloads; an expired session only asks to sign in again — answers and the draft stay on the device */
   document.addEventListener('sb:signout',e=>{if(e.detail&&e.detail.user)location.reload();else SB.gate({sub,note:'إجاباتك محفوظة على هذا الجهاز وتُرسل بعد الدخول.'}).then(after)});
