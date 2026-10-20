@@ -164,6 +164,25 @@ html[lang=en] .phead-t h1{text-transform:uppercase;letter-spacing:.5px}
 .kpi-v{margin-top:14px;font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .kpi-v small{font-size:14px;font-weight:400;color:var(--muted);margin-inline-start:6px}
 .kpi-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted);min-height:22px}
+.goal{background:var(--surface);border-radius:var(--r);padding:20px 24px;margin-bottom:24px}
+.goal[hidden]{display:none}
+.goal-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.goal-h h3{margin:0;font-size:16px;font-weight:700;color:var(--main)}
+.goal .mu{color:var(--muted);font-size:12px}
+.goal-g{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.goal-r{min-width:0}
+.goal-t{display:flex;align-items:center;gap:10px}
+.goal-t .ic{display:inline-flex}.goal-t .i{width:36px;height:36px;padding:9px;border-radius:50%;background:var(--icon-bg);color:var(--main);stroke-width:1.6}
+.goal-t b{font-size:14px;color:var(--ink)}
+.goal-p{margin-inline-start:auto;font-size:22px;font-weight:700;color:var(--main);font-variant-numeric:tabular-nums}
+.goal-v{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin:10px 0 6px}
+.goal-v>span:first-child{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.goal-v small{font-size:12px;font-weight:400;color:var(--muted)}
+.goal-bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+.goal-bar i{display:block;height:100%;border-radius:999px;background:var(--main)}
+.goal-f{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}
+.goal .n{font-variant-numeric:tabular-nums}
+@media(max-width:760px){.goal{padding:16px;margin-bottom:12px}.goal-g{grid-template-columns:1fr;gap:18px}.goal-v>span:first-child,.goal-p{font-size:18px}}
 .kpi-spark{height:44px;margin:6px -6px -4px;direction:ltr}
 .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700;white-space:nowrap}
 .chip.up{background:var(--up-bg);color:var(--up)}
@@ -931,7 +950,7 @@ html[lang=en] .phead-t h1{text-transform:none;letter-spacing:0}
 #dashRange.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
 
 /* cards: rounded-xl white with Tailwind shadow */
-.card,.info,.mini,.kpi{border-radius:12px;box-shadow:var(--shadow)}
+.card,.info,.mini,.kpi,.goal{border-radius:12px;box-shadow:var(--shadow)}
 .card{padding:16px 20px}
 .card-h h2{font-size:16px;font-weight:600}
 .grid,.hero,.info,.strip{gap:16px}
@@ -1054,6 +1073,9 @@ html[dir=rtl] .rl-b>i::after{background:var(--primary)}
   .pd-k b{display:block;font-size:17pt;line-height:1.25;margin:3px 0 1px;color:var(--primary)}
   .pd-k b small{font-size:8pt;font-weight:500;color:var(--muted);margin-inline-start:3px}
   .pd-k em{display:block;font-style:normal;font-size:7.5pt;color:var(--acc)}
+  .pd-gl{display:grid;grid-template-columns:22% 1fr auto 9%;align-items:center;gap:8px;font-size:8.5pt;margin:4px 0}
+  .pd-gl i{height:8px;border-radius:99px;background:#ECEFEC;overflow:hidden;display:block}.pd-gl i b{display:block;height:100%;background:var(--primary)}
+  .pd-gl em{font-style:normal;font-weight:700;color:var(--primary);text-align:end}.pd-gl small{color:var(--muted)}
   .pd-g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .pd-c{border:1px solid var(--line);border-radius:8px;padding:8px 10px 10px;margin-bottom:8px;break-inside:avoid}
   .pd-c.pd-flow{break-inside:auto}
@@ -1410,6 +1432,7 @@ zrender/lib/zrender.js:
       <!-- DASHBOARD -->
       <section class="tab-panel active" id="p-dashboard">
         <div class="hero" id="heroKpis"></div>
+        <div class="goal" id="goalKpis"></div>
         <div class="info" id="stripKpis"></div>
         <div class="card">
           <div class="card-h">
@@ -3050,6 +3073,10 @@ let RANGEF=null;
 const goA=(tab,f)=>goAttr(tab,tab==='lots'&&RANGEF?Object.assign({},RANGEF,f):f);
 
 /* ── charts ── */
+/* season target (2026): sales value and sold volume the auction aims for — progress counts sold batches of the whole season */
+const GOAL={year:2026,sar:20575696.44,kg:3510642.72};
+function goalStat(){const sold=D.lots.filter(l=>l.status==='Sold'),sar=sold.reduce((s,l)=>s+(l.finalPrice||0)*(l.weight||0),0),kg=sold.reduce((s,l)=>s+(l.weight||0),0),off=D.lots.reduce((s,l)=>s+(l.weight||0),0);
+  return {sar,kg,off,n:sold.length,pS:sar/GOAL.sar*100,pK:kg/GOAL.kg*100}}
 const CH={};const C={oasis:'#14332D',oasis2:'#805E45',gold:'#BA9863',goldInk:'#986018',y25:'#E2C6AA',ink:'#3D3936',muted:'#5c5751',line:'#e5e7eb',ochre:'#D6AD68',down:'#D08B67',warn:'#D6AD68'};
 const FAM=['#14332D','#BA9863','#805E45','#D6AD68','#986018','#D08B67','#6E6A66','#E2C6AA','#3D3936'];
 function shade(h,k){const n=parseInt(h.slice(1),16),m=x=>Math.round(x+(255-x)*k);return `rgb(${m(n>>16)},${m(n>>8&255)},${m(n&255)})`}
@@ -3117,6 +3144,14 @@ function dash(){
    <div class="kpi"${goA('lots',{fLotStatus:'Sold'})}><div class="kpi-l">${ic('tag')}${t('متوسط السعر','Average price')}</div><div class="kpi-v">${nf(avg,2,2)}<small>${U.kg()}</small></div><div class="kpi-spark" id="spAvg"></div></div>
    <div class="kpi"${goA('lots',{})}><div class="kpi-l">${ic('pie')}${t('نسبة البيع من المعروض','Sell-through')}</div><div class="kpi-v">${nf(pct,0)}<small>%</small></div><div class="kpi-f"><span><bdi class="n">${tons(sk)}</bdi> ${t('من','of')} <bdi class="n">${tons(off)}</bdi> ${U.t()}</span></div>
      <div class="split">${seg.map(s=>`<i style="width:${off?s[0]/off*100:0}%;background:${s[1]}"></i>`).join('')}</div><div class="split-l">${seg.map(s=>`<span><i class="dot" style="background:${s[1]}"></i>${s[2]}</span>`).join('')}</div></div>`;
+  const gEl=$('goalKpis');if(gEl){const on=VIEW_YEAR===GOAL.year;gEl.hidden=!on;if(on){const G=goalStat();
+    const row=(icn,l,v,tg,u,p,left,sub)=>`<div class="goal-r"><div class="goal-t"><span class="ic">${ic(icn)}</span><b>${l}</b><span class="goal-p">${nf(p,1,1)}%</span></div>
+      <div class="goal-v"><span><bdi class="n">${v}</bdi> <small>${u}</small></span><span class="mu">${t('من المستهدف','of target')} <bdi class="n">${tg}</bdi> <small>${u}</small></span></div>
+      <div class="goal-bar"><i style="width:${Math.min(p,100)}%"></i></div>
+      <div class="goal-f"><span>${t('المتبقي','Remaining')}: <bdi class="n">${left}</bdi> ${u}</span>${sub?`<span>${sub}</span>`:''}</div></div>`;
+    gEl.innerHTML=`<div class="goal-h"><h3>${t('مستهدف موسم ','Season target ')+GOAL.year}</h3><span class="mu">${t('المبيع والمسجّل حتى الآن — الموسم كاملاً','Sold and recorded so far — whole season')}</span></div>
+      <div class="goal-g">${row('money',t('قيمة المبيعات','Sales value'),nf(G.sar,0),nf(GOAL.sar,0),U.sar(),G.pS,nf(Math.max(GOAL.sar-G.sar,0),0),`${nf(G.n)} ${t('صفقة مباعة','sold deals')}`)}
+      ${row('scale',t('الكمية المباعة','Sold volume'),tons(G.kg),tons(GOAL.kg),U.t(),G.pK,tons(Math.max(GOAL.kg-G.kg,0)),`${t('المسجّل في المزاد','Recorded at auction')}: <bdi class="n">${tons(G.off)}</bdi> ${U.t()}`)}</div>`}}
   spark('spSales',cur.map(w=>Math.round(w.sar)),C.oasis);spark('spKg',cur.map(w=>w.kg/1000),C.oasis);spark('spAvg',cur.map(w=>w.kg?w.sar/w.kg:0),C.gold);
   const kvr=(l,v,u,go,ch)=>`<div class="kvr"${go}><span>${l}</span><span>${ch||''}<span class="pill">${v}${u?`<small>${u}</small>`:''}</span></span></div>`;
   const col=(icn,h,rows)=>`<div class="info-col"><div class="info-h"><span class="ic">${ic(icn)}</span><h3>${h}</h3></div>${rows}</div>`;
@@ -3561,6 +3596,8 @@ function buildPrintDash(){const host=$('printDash');if(!host)return;
     k(t('الوزن المباع','Sold weight'),tons(sk),U.t(),`${nf(off?sk/off*100:0,0)}% ${t('من المعروض','of offered')}`)+
     k(t('إجمالي المبيعات','Total sales'),nf(sales,0),U.sar(),`${nf(sold.length)} ${t('صفقة','transactions')}`,1)+
     k(t('متوسط السعر','Average price'),nf(avg,2,2),U.kg(),t('لكل كجم مباع','per kg sold'))+`</div>`;
+  if(VIEW_YEAR===GOAL.year){const G=goalStat(),gb=(l,v,tg,u,p)=>`<div class="pd-gl"><span>${l}</span><i><b style="width:${Math.min(p,100)}%"></b></i><span class="n">${v} / ${tg} <small>${u}</small></span><em class="n">${nf(p,1,1)}%</em></div>`;
+    h+=card(t('مستهدف موسم ','Season target ')+GOAL.year+` <small>(${t('الموسم كاملاً','whole season')})</small>`,gb(t('قيمة المبيعات','Sales value'),nf(G.sar,0),nf(GOAL.sar,0),U.sar(),G.pS)+gb(t('الكمية المباعة','Sold volume'),tons(G.kg),tons(GOAL.kg),U.t(),G.pK))}
   /* 2 · weights + status */
   const ST=[[off,'#9DB3A9',t('المعروض','Offered')],[sk,C.oasis2,t('المباع','Sold')],[pen,C.warn,t('قيد الانتظار','Pending')],[wd,'#B5523B',t('المسحوب','Withdrawn')],[un,'#A89F95',t('غير مباع','Unsold')]].filter((x,i)=>i<2||x[0]>0);
   const wrow=([v,c,l])=>`<div class="pd-wr"><span>${l}</span><i><b style="width:${off?v/off*100:0}%;background:${c}"></b></i><span class="n">${tons(v)}${T}</span></div>`;
