@@ -70,7 +70,7 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:22px 16px 28p
       <ul><li data-t="لوحة المؤشرات|Dashboard">لوحة المؤشرات</li><li data-t="الدفعات|Batches">الدفعات</li><li data-t="التقارير|Reports">التقارير</li><li data-t="تصدير Excel|Excel export">تصدير Excel</li></ul>
       <span class="go"><span data-t="فتح المزاد|Open the auction">فتح المزاد</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
     </a>
-    <a class="portal survey" href="survey/">
+    <a class="portal survey" href="https://agriculture.rcu.gov.sa/farm-production-survey" id="svLink">
       <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 12 2 2 4-4"/><path d="M9 18h6"/></svg></span>
       <h2 data-t="استبيان إنتاج التمور والحمضيات|Dates & citrus production survey">استبيان إنتاج التمور والحمضيات</h2>
       <div class="en" data-t="Dates & citrus production survey|استبيان إنتاج التمور والحمضيات">Dates &amp; citrus production survey</div>
@@ -86,6 +86,8 @@ footer{text-align:center;font-size:13px;color:var(--muted);padding:22px 16px 28p
 /* signed-in state (the same team account opens both portals) */
 (()=>{if(!window.SB||!SB.configured||!SB.signedIn)return;const w=document.getElementById('who'),o=document.getElementById('out');
   w.textContent=SB.email||'';w.hidden=false;o.hidden=false;
+  /* the survey now lives on the Agriculture Center platform; a device with unsent answers opens the old page first so they get sent */
+  (()=>{const l=document.getElementById('svLink');let n=0;try{n=(JSON.parse(localStorage.getItem('dates-survey-outbox-v1')||'[]')||[]).length}catch(e){}if(n&&l)l.href='survey/'})();
   o.onclick=()=>{const ar=document.documentElement.lang==='ar';let q=0,sq=0;try{q=(JSON.parse(localStorage.getItem('alu_sync_q')||'[]')||[]).length;sq=(JSON.parse(localStorage.getItem('dates-survey-outbox-v1')||'[]')||[]).length}catch(e){}
     /* never sign out while this device still holds data that has not reached the database */
     if(q||sq){alert(ar?('لا يمكن تسجيل الخروج الآن: على هذا الجهاز '+(q?q+' تعديل في المزاد ':'')+(sq?sq+' استبيان ':'')+'لم تُرسل بعد. افتح البوابة واتصل بالإنترنت حتى تُرسل، ثم سجّل الخروج.'):('Cannot sign out yet: this device still has '+(q?q+' auction change(s) ':'')+(sq?sq+' survey(s) ':'')+'not sent. Open the portal online until they are sent, then sign out.'));return}

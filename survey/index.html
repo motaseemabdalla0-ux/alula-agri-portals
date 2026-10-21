@@ -894,6 +894,11 @@ input[aria-invalid=true]{border-color:#B3341F!important}
 <script>
 /* the survey's central register is the shared database: same calls ("submit", "list"), answered by Supabase */
 (()=>{if(!window.SB||!SB.configured)return;
+  /* the survey moved to the Agriculture Center platform: go there, unless this device still holds unsent answers (send them first) */
+  const RCU='https://agriculture.rcu.gov.sa/farm-production-survey',pend=()=>{try{return (JSON.parse(localStorage.getItem('dates-survey-outbox-v1')||'[]')||[]).length}catch(e){return 0}};
+  if(!pend()){location.replace(RCU);return}
+  document.body.insertAdjacentHTML('afterbegin',`<div style="background:#FCF3E1;color:#5C4314;padding:10px 16px;text-align:center;font-size:14px;font-weight:700">انتقل الاستبيان إلى منصة مركز الزراعة. على هذا الجهاز ${pend()} استبيان لم يُرسل بعد — سجّل الدخول ليُرسل، ثم تنتقل تلقائياً. <a href="${RCU}" style="color:inherit">فتح المنصة</a></div>`);
+  setInterval(()=>{if(!pend())location.replace(RCU)},5000);
   window.post=async function(p){
     if(p.action==='submit'){await SB.rest('surveys?on_conflict=record_id',{method:'POST',body:[{record_id:p.record.recordId,data:p.record}],headers:{Prefer:'resolution=merge-duplicates,return=minimal'}});return {ok:true,recordId:p.record.recordId}}
     if(p.action==='delete'){await SB.rest('surveys?record_id=eq.'+encodeURIComponent(p.recordId),{method:'DELETE',headers:{Prefer:'return=minimal'}});return {ok:true}}
